@@ -39,6 +39,10 @@ precisam compartilhar as mesmas informações em tempo real.
 ### Para uso real (dados compartilhados entre todos)
 
 Será preciso trocar `src/lib/storage.js` por chamadas a um backend real.
+O schema das tabelas (`oficinas`, `ambientes`, `inscricoes`) já está pronto em
+[`supabase/schema.sql`](./supabase/schema.sql) — basta rodá-lo no SQL Editor
+do projeto Supabase depois de criá-lo.
+
 Opções simples:
 
 - **Supabase** (Postgres gerenciado, fácil de integrar com React, tem plano
