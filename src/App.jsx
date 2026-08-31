@@ -605,12 +605,45 @@ function AmbientesManager({ ambientes, saveAmbientes }) {
       </div>
       <div className="space-y-2">
         {ambientes.slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => (
-          <div key={a.id} className="flex items-center justify-between border border-stone-200 rounded-lg px-4 py-2.5 bg-white text-sm">
-            <span className="font-medium">{a.nome} <span className="text-slate-400 font-normal">· {a.tipo === "sala" ? "sala convencional" : "outro espaço"} · até {a.capacidade} pessoas</span></span>
-            <button onClick={() => saveAmbientes(ambientes.filter((x) => x.id !== a.id))} className="text-rose-400 hover:text-rose-600"><X className="w-4 h-4" /></button>
-          </div>
+          <AmbienteRow key={a.id} ambiente={a} ambientes={ambientes} saveAmbientes={saveAmbientes} />
         ))}
         {ambientes.length === 0 && <p className="text-sm text-slate-400">Nenhum ambiente cadastrado ainda.</p>}
+      </div>
+    </div>
+  );
+}
+
+function AmbienteRow({ ambiente, ambientes, saveAmbientes }) {
+  const [capacidade, setCapacidade] = useState(ambiente.capacidade);
+
+  useEffect(() => {
+    setCapacidade(ambiente.capacidade);
+  }, [ambiente.capacidade]);
+
+  function commit() {
+    const valor = Math.max(0, Number(capacidade) || 0);
+    setCapacidade(valor);
+    if (valor !== ambiente.capacidade) {
+      saveAmbientes(ambientes.map((x) => (x.id === ambiente.id ? { ...x, capacidade: valor } : x)));
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between border border-stone-200 rounded-lg px-4 py-2.5 bg-white text-sm gap-3">
+      <span className="font-medium">{ambiente.nome} <span className="text-slate-400 font-normal">· {ambiente.tipo === "sala" ? "sala convencional" : "outro espaço"}</span></span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-slate-400">até</span>
+        <input
+          type="number"
+          min="0"
+          value={capacidade}
+          onChange={(e) => setCapacidade(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="w-16 border border-stone-300 rounded-md px-2 py-1 text-sm text-right"
+        />
+        <span className="text-slate-400">pessoas</span>
+        <button onClick={() => saveAmbientes(ambientes.filter((x) => x.id !== ambiente.id))} className="text-rose-400 hover:text-rose-600 ml-1"><X className="w-4 h-4" /></button>
       </div>
     </div>
   );
