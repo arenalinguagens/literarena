@@ -42,16 +42,27 @@ create table if not exists inscricoes (
 
 create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 
--- RLS: o app hoje não tem autenticação (login é só nome/matrícula digitados),
--- então as policies abaixo liberam leitura/escrita para a chave "anon".
--- Isso é adequado para uso interno do festival, mas não protege contra
--- alguém de fora do colégio acessando a URL do Supabase diretamente.
--- Se quiser mais segurança, adicione autenticação (Supabase Auth) antes de
--- restringir estas policies por usuário.
+-- professores: login do professor (nome + senha). A senha nunca é
+-- guardada em texto puro — só salt + hash (ver src/lib/auth.js).
+create table if not exists professores (
+  nome_normalizado  text primary key,  -- nome em minúsculas/sem espaços nas pontas
+  nome              text not null,
+  salt              text not null,
+  senha_hash        text not null,
+  created_at        timestamptz not null default now()
+);
+
+-- RLS: o app hoje não tem autenticação de servidor (login é feito no
+-- navegador comparando hashes), então as policies abaixo liberam
+-- leitura/escrita para a chave "anon". Isso é adequado para uso interno
+-- do festival, mas não protege contra alguém de fora do colégio
+-- acessando a URL do Supabase diretamente. Se quiser mais segurança,
+-- adicione Supabase Auth de verdade antes de restringir estas policies.
 
 alter table ambientes enable row level security;
 alter table oficinas enable row level security;
 alter table inscricoes enable row level security;
+alter table professores enable row level security;
 
 create policy "ambientes: leitura publica" on ambientes for select using (true);
 create policy "ambientes: escrita publica" on ambientes for all using (true) with check (true);
@@ -61,3 +72,8 @@ create policy "oficinas: escrita publica" on oficinas for all using (true) with 
 
 create policy "inscricoes: leitura publica" on inscricoes for select using (true);
 create policy "inscricoes: escrita publica" on inscricoes for all using (true) with check (true);
+
+-- professores: só leitura (pra checar login) e criação de conta nova.
+-- Sem policy de update/delete: não dá pra trocar/apagar senha pelo app hoje.
+create policy "professores: leitura publica" on professores for select using (true);
+create policy "professores: criar conta" on professores for insert with check (true);

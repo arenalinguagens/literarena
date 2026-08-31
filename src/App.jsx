@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { storage } from "./lib/storage";
+import { buscarProfessor, criarProfessor, senhaValida } from "./lib/auth";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
   AlertTriangle, ArrowLeft, Plus, Trash2, GraduationCap, ShieldCheck,
@@ -238,34 +239,172 @@ function BackBar({ onBack, title, tone = "light" }) {
 }
 
 /* ---------------- PROFESSOR ---------------- */
+function ProfessorLogin({ onBack, onLogin }) {
+  const [nome, setNome] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [etapa, setEtapa] = useState("nome"); // nome | entrar | criar
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  async function continuarComNome() {
+    if (!nome.trim()) return;
+    setErro("");
+    setCarregando(true);
+    try {
+      const professor = await buscarProfessor(nome);
+      setEtapa(professor ? "entrar" : "criar");
+    } catch {
+      setErro("Não foi possível verificar seu cadastro. Tente de novo.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function entrar() {
+    if (!senha) return;
+    setErro("");
+    setCarregando(true);
+    try {
+      const ok = await senhaValida(nome, senha);
+      if (ok) onLogin(nome.trim());
+      else setErro("Senha incorreta.");
+    } catch {
+      setErro("Não foi possível entrar. Tente de novo.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function criarConta() {
+    if (senha.length < 6) { setErro("A senha precisa ter pelo menos 6 caracteres."); return; }
+    if (senha !== confirmarSenha) { setErro("As senhas não coincidem."); return; }
+    setErro("");
+    setCarregando(true);
+    try {
+      await criarProfessor(nome, senha);
+      onLogin(nome.trim());
+    } catch (e) {
+      if (e.message === "CONTA_JA_EXISTE") {
+        setEtapa("entrar");
+        setSenha("");
+        setErro("Essa conta já existe. Digite sua senha.");
+      } else {
+        setErro("Não foi possível criar sua senha. Tente de novo.");
+      }
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  function trocarNome() {
+    setEtapa("nome");
+    setSenha("");
+    setConfirmarSenha("");
+    setErro("");
+  }
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Portal do Professor" />
+      <div className="max-w-sm mx-auto px-6 py-16 text-center">
+        <GraduationCap className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
+
+        {etapa === "nome" && (
+          <>
+            <p className="text-slate-600 mb-4">Informe seu nome para cadastrar ou consultar suas oficinas.</p>
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && continuarComNome()}
+              placeholder="Seu nome completo"
+              autoFocus
+              className="input mb-3"
+            />
+            {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
+            <button
+              disabled={!nome.trim() || carregando}
+              onClick={continuarComNome}
+              className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
+            >
+              {carregando ? "Verificando…" : "Continuar"}
+            </button>
+          </>
+        )}
+
+        {etapa === "entrar" && (
+          <>
+            <p className="text-slate-600 mb-1">Olá, <strong>{nome.trim()}</strong>.</p>
+            <p className="text-slate-500 text-sm mb-4">Digite sua senha para entrar.</p>
+            <input
+              type="password"
+              value={senha}
+              onChange={(e) => { setSenha(e.target.value); setErro(""); }}
+              onKeyDown={(e) => e.key === "Enter" && entrar()}
+              placeholder="Senha"
+              autoFocus
+              className="input mb-3"
+            />
+            {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
+            <button
+              disabled={!senha || carregando}
+              onClick={entrar}
+              className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
+            >
+              {carregando ? "Entrando…" : "Entrar"}
+            </button>
+            <button onClick={trocarNome} className="mt-3 text-xs text-slate-400 hover:text-slate-600">
+              Não é você? Trocar nome
+            </button>
+          </>
+        )}
+
+        {etapa === "criar" && (
+          <>
+            <p className="text-slate-600 mb-1">Olá, <strong>{nome.trim()}</strong>! Primeiro acesso.</p>
+            <p className="text-slate-500 text-sm mb-4">Crie uma senha para acessar suas oficinas sempre com esse nome.</p>
+            <input
+              type="password"
+              value={senha}
+              onChange={(e) => { setSenha(e.target.value); setErro(""); }}
+              placeholder="Crie uma senha (mín. 6 caracteres)"
+              autoFocus
+              className="input mb-3"
+            />
+            <input
+              type="password"
+              value={confirmarSenha}
+              onChange={(e) => { setConfirmarSenha(e.target.value); setErro(""); }}
+              onKeyDown={(e) => e.key === "Enter" && criarConta()}
+              placeholder="Confirme a senha"
+              className="input mb-3"
+            />
+            {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
+            <button
+              disabled={!senha || !confirmarSenha || carregando}
+              onClick={criarConta}
+              className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
+            >
+              {carregando ? "Criando…" : "Criar senha e continuar"}
+            </button>
+            <button onClick={trocarNome} className="mt-3 text-xs text-slate-400 hover:text-slate-600">
+              Não é você? Trocar nome
+            </button>
+          </>
+        )}
+
+        <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
+      </div>
+    </div>
+  );
+}
+
 function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, flash }) {
   const [tab, setTab] = useState("nova");
-  const [nomeInput, setNomeInput] = useState(professorNome);
   const [editing, setEditing] = useState(null);
 
   if (!professorNome) {
-    return (
-      <div>
-        <BackBar onBack={onBack} title="Portal do Professor" />
-        <div className="max-w-sm mx-auto px-6 py-16 text-center">
-          <GraduationCap className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
-          <p className="text-slate-600 mb-4">Informe seu nome para cadastrar ou consultar suas oficinas.</p>
-          <input
-            value={nomeInput}
-            onChange={(e) => setNomeInput(e.target.value)}
-            placeholder="Seu nome completo"
-            className="w-full border border-stone-300 rounded-lg px-4 py-2.5 mb-3 focus:outline-none focus:ring-2 focus:ring-amber-400"
-          />
-          <button
-            disabled={!nomeInput.trim()}
-            onClick={() => setProfessorNome(nomeInput.trim())}
-            className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
-          >
-            Continuar
-          </button>
-        </div>
-      </div>
-    );
+    return <ProfessorLogin onBack={onBack} onLogin={setProfessorNome} />;
   }
 
   const minhas = oficinas.filter((o) => o.professor.toLowerCase() === professorNome.toLowerCase());
