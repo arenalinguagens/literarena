@@ -187,9 +187,6 @@ function Home({ onNav, totals }) {
           <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
             <Users className="w-5 h-5" /> Sou Aluno
           </button>
-          <button onClick={() => onNav("admin")} className="flex items-center justify-center gap-2 border border-indigo-200 hover:bg-indigo-50 text-indigo-950 font-semibold py-3 rounded-lg transition">
-            <ShieldCheck className="w-5 h-5" /> Coordenação
-          </button>
         </div>
 
         <TicketStub>
@@ -207,6 +204,10 @@ function Home({ onNav, totals }) {
           <div><span className="text-teal-600 font-bold">{totals.professores}</span> professores</div>
           <div><span className="text-teal-600 font-bold">{totals.inscricoes}</span> inscrições</div>
         </div>
+
+        <button onClick={() => onNav("admin")} className="mt-12 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+          <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
+        </button>
       </div>
     </div>
   );
