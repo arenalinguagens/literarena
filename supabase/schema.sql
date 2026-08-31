@@ -3,12 +3,13 @@
 -- Corresponde ao modelo hoje salvo em localStorage por src/lib/storage.js
 -- (chaves "oficinas", "ambientes", "inscricoes"). Rode este arquivo inteiro
 -- no SQL Editor do projeto Supabase depois de criá-lo.
-
-create extension if not exists "pgcrypto";
+--
+-- Os ids são gerados no app (função uid() em src/App.jsx), não no banco —
+-- por isso são "text" e não "uuid".
 
 -- ambientes: espaços disponíveis no festival (salas e outros locais)
 create table if not exists ambientes (
-  id          uuid primary key default gen_random_uuid(),
+  id          text primary key,
   nome        text not null,
   capacidade  int4 not null default 0,
   tipo        text not null default 'sala' check (tipo in ('sala', 'outro'))
@@ -16,7 +17,7 @@ create table if not exists ambientes (
 
 -- oficinas: propostas cadastradas por professores, aprovadas pela coordenação
 create table if not exists oficinas (
-  id                uuid primary key default gen_random_uuid(),
+  id                text primary key,
   professor         text not null,
   nome              text not null,
   descricao         text not null,
@@ -35,7 +36,7 @@ create table if not exists oficinas (
 create table if not exists inscricoes (
   matricula   text primary key,
   nome_aluno  text not null,
-  oficina_id  uuid not null references oficinas(id) on delete cascade,
+  oficina_id  text not null references oficinas(id) on delete cascade,
   "timestamp" timestamptz not null default now()
 );
 
