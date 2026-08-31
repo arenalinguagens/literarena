@@ -52,6 +52,14 @@ export default function App() {
   const [view, setView] = useState("home");
   const [professorNome, setProfessorNome] = useState("");
   const [toast, setToast] = useState(null);
+  const [adminUnlocked, setAdminUnlocked] = useState(
+    () => sessionStorage.getItem("literarena_admin_unlocked") === "1"
+  );
+
+  function unlockAdmin() {
+    sessionStorage.setItem("literarena_admin_unlocked", "1");
+    setAdminUnlocked(true);
+  }
 
   useEffect(() => { loadAll(); }, []);
 
@@ -145,7 +153,11 @@ export default function App() {
         />
       )}
 
-      {view === "admin" && (
+      {view === "admin" && !adminUnlocked && (
+        <AdminLogin onBack={() => setView("home")} onUnlock={unlockAdmin} />
+      )}
+
+      {view === "admin" && adminUnlocked && (
         <AdminPortal
           onBack={() => setView("home")}
           oficinas={oficinas}
@@ -401,6 +413,49 @@ function Field({ label, children }) {
 }
 
 /* ---------------- ADMIN ---------------- */
+const SENHA_COORDENACAO = "Arena@123!";
+
+function AdminLogin({ onBack, onUnlock }) {
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+
+  function entrar() {
+    if (senha === SENHA_COORDENACAO) {
+      onUnlock();
+    } else {
+      setErro("Senha incorreta.");
+    }
+  }
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Área restrita" tone="dark" />
+      <div className="max-w-sm mx-auto px-6 py-16 text-center">
+        <ShieldCheck className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
+        <p className="text-slate-600 mb-4">Acesso da coordenação. Informe a senha para continuar.</p>
+        <input
+          type="password"
+          value={senha}
+          onChange={(e) => { setSenha(e.target.value); setErro(""); }}
+          onKeyDown={(e) => e.key === "Enter" && entrar()}
+          placeholder="Senha"
+          autoFocus
+          className="input mb-3"
+        />
+        {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
+        <button
+          disabled={!senha}
+          onClick={entrar}
+          className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
+        >
+          Entrar
+        </button>
+        <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
+      </div>
+    </div>
+  );
+}
+
 function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("todas");
