@@ -233,7 +233,8 @@ function BackBar({ onBack, title, tone = "light" }) {
         <ArrowLeft className="w-4 h-4" /> Início
       </button>
       <div className="w-px h-5 bg-current opacity-20" />
-      <h2 className="font-serif font-bold text-lg">{title}</h2>
+      <h2 className="font-serif font-bold text-lg flex-1">{title}</h2>
+      <img src={LOGO_SRC} alt="LiterArena" className="h-8 w-auto" />
     </div>
   );
 }
