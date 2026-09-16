@@ -84,22 +84,23 @@ export const storage = {
     return { value: JSON.stringify(data.map(cfg.fromRow)) };
   },
 
-  async set(key, value) {
+  // `previous` é a lista que ESTE navegador tinha antes da edição (o estado
+  // local de antes do clique que gerou esse save). Só apagamos do banco uma
+  // linha que estava em `previous` e não está mais em `value` — ou seja,
+  // algo que o usuário removeu de propósito. Uma linha que outra pessoa
+  // criou depois do último carregamento deste navegador nunca é apagada só
+  // por não aparecer na lista local, mesmo que a lista local seja antiga.
+  async set(key, value, previous = []) {
     const cfg = TABLES[key];
     if (!cfg) throw new Error(`Chave de storage desconhecida: ${key}`);
 
     const incoming = JSON.parse(value);
     const rows = incoming.map(cfg.toRow);
-    const incomingIds = rows.map((r) => r[cfg.idField]);
+    const incomingIds = new Set(rows.map((r) => r[cfg.idField]));
 
-    const { data: existing, error: selectError } = await supabase
-      .from(cfg.table)
-      .select(cfg.idField);
-    if (selectError) throw selectError;
-
-    const toDelete = existing
-      .map((r) => r[cfg.idField])
-      .filter((id) => !incomingIds.includes(id));
+    const toDelete = previous
+      .map((p) => p[cfg.idField])
+      .filter((id) => !incomingIds.has(id));
 
     if (toDelete.length > 0) {
       const { error: deleteError } = await supabase

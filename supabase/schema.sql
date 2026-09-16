@@ -34,11 +34,14 @@ create table if not exists oficinas (
   created_at        timestamptz not null default now()
 );
 
--- inscricoes: alunos inscritos em uma oficina (1 inscrição por matrícula)
+-- inscricoes: alunos inscritos em uma oficina (1 inscrição por matrícula).
+-- oficina_id fica nulo (não é apagado em cascata) se a oficina for
+-- removida, porque a inscrição do aluno deve continuar valendo como
+-- registro (o app mostra "Oficina removida" nesse caso — ver AlunoPortal).
 create table if not exists inscricoes (
   matricula   text primary key,
   nome_aluno  text not null,
-  oficina_id  text not null references oficinas(id) on delete cascade,
+  oficina_id  text references oficinas(id) on delete set null,
   "timestamp" timestamptz not null default now()
 );
 

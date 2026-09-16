@@ -84,7 +84,7 @@ export default function App() {
       } else {
         setAmbientes(DEFAULT_AMBIENTES);
         try {
-          await storage.set(KEYS.AMBIENTES, JSON.stringify(DEFAULT_AMBIENTES), true);
+          await storage.set(KEYS.AMBIENTES, JSON.stringify(DEFAULT_AMBIENTES), []);
         } catch {
           // se falhar, a lista padrão ainda fica visível nesta sessão
         }
@@ -105,18 +105,18 @@ export default function App() {
     }
   }
 
-  async function persist(key, value, setter) {
+  async function persist(key, value, setter, previous) {
     setter(value);
     try {
-      await storage.set(key, JSON.stringify(value), true);
+      await storage.set(key, JSON.stringify(value), previous);
     } catch {
       flash("Erro ao salvar. Verifique sua conexão e tente de novo.");
     }
   }
 
-  const saveOficinas = (v) => persist(KEYS.OFICINAS, v, setOficinas);
-  const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes);
-  const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes);
+  const saveOficinas = (v) => persist(KEYS.OFICINAS, v, setOficinas, oficinas);
+  const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes, ambientes);
+  const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes);
 
   const vagasOcupadas = (oficinaId) => inscricoes.filter((i) => i.oficinaId === oficinaId).length;
 
