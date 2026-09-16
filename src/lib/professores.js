@@ -7,6 +7,7 @@ export const PROFESSORES_LISTA = [
   "Cléssia",
   "Daniela",
   "Elaine",
+  "Élbio",
   "Ester",
   "Flávia",
   "Fred",
