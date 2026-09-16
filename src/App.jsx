@@ -204,12 +204,21 @@ function Home({ onNav, totals }) {
         </div>
 
         <TicketStub>
-          <div className="inline-flex items-center gap-6 bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-8 py-3 rounded-sm">
-            <Ticket className="w-5 h-5 text-amber-400" />
-            <div className="text-left">
-              <div className="text-xs text-indigo-300 uppercase tracking-wide">23 de outubro · manhã</div>
-              <div className="text-xs text-indigo-300">3º e 4º horários: 6º e 7º ano · 5º e 6º horários: 8º e 9º ano</div>
-              <div className="font-serif font-semibold">Sessão única do festival</div>
+          <div className="w-full max-w-sm mx-auto bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-6 py-4 rounded-sm text-left">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs text-indigo-300 uppercase tracking-wide">23 de outubro · manhã</span>
+            </div>
+            <div className="font-serif font-semibold text-lg mt-1 mb-3">Sessão única do festival</div>
+            <div className="border-t border-dashed border-indigo-700 pt-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-indigo-300">3º e 4º horários</span>
+                <span className="font-semibold">6º e 7º ano</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-indigo-300">5º e 6º horários</span>
+                <span className="font-semibold">8º e 9º ano</span>
+              </div>
             </div>
           </div>
         </TicketStub>
