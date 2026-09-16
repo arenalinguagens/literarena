@@ -523,7 +523,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
         </Field>
         <Field label="Condução da oficina">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${modoEquipe === "sozinho" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
               <input type="radio" className="hidden" checked={modoEquipe === "sozinho"} onChange={() => setModoEquipe("sozinho")} />
               Vou conduzir a oficina sozinho
@@ -562,7 +562,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
           <input value={materiais} onChange={(e) => setMateriais(e.target.value)} placeholder="Ex.: cartolina, tinta, farinha de trigo, material de papelaria etc." className="input" />
         </Field>
         <Field label="Ambiente necessário">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteTipo === "sala" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
               <input type="radio" className="hidden" checked={ambienteTipo === "sala"} onChange={() => setAmbienteTipo("sala")} />
               Sala de aula convencional
