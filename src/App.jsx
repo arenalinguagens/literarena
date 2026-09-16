@@ -657,6 +657,13 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
   const oficinasFiltradas = filtro === "todas" ? oficinas : oficinas.filter((o) => o.status === filtro);
 
+  const alocacaoCount = {};
+  oficinas.forEach((o) => {
+    if (o.status === "aprovada" && o.ambienteAlocado) {
+      alocacaoCount[o.ambienteAlocado] = (alocacaoCount[o.ambienteAlocado] || 0) + 1;
+    }
+  });
+
   function updateOficina(id, changes) {
     saveOficinas(oficinas.map((o) => (o.id === id ? { ...o, ...changes } : o)));
   }
@@ -720,7 +727,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             </div>
             <div className="space-y-3">
               {oficinasFiltradas.map((o) => (
-                <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas={vagasOcupadas(o.id)} onUpdate={updateOficina} onRemove={removerOficina} />
+                <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas={vagasOcupadas(o.id)} alocacaoCount={alocacaoCount} onUpdate={updateOficina} onRemove={removerOficina} />
               ))}
               {oficinasFiltradas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina nesse status.</p>}
             </div>
@@ -765,10 +772,15 @@ function Stat({ icon: Icon, label, value }) {
   );
 }
 
-function AdminOficinaRow({ oficina, ambientes, ocupadas, onUpdate, onRemove }) {
+function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate, onRemove }) {
   const [feedback, setFeedback] = useState(oficina.feedback || "");
   const [vagas, setVagas] = useState(oficina.vagas);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
+
+  const outrasNesseAmbiente = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada"
+    ? (alocacaoCount[ambienteAlocado] || 0) - 1
+    : (alocacaoCount[ambienteAlocado] || 0);
+  const conflito = ambienteAlocado && outrasNesseAmbiente > 0;
 
   return (
     <div className="border border-stone-200 rounded-xl p-4 bg-white">
@@ -793,10 +805,19 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, onUpdate, onRemove }) {
           <input type="number" min="0" value={vagas} onChange={(e) => setVagas(Number(e.target.value))} className="input" />
         </Field>
         <Field label="Ambiente alocado">
-          <select value={ambienteAlocado} onChange={(e) => setAmbienteAlocado(e.target.value)} className="input">
+          <select
+            value={ambienteAlocado}
+            onChange={(e) => setAmbienteAlocado(e.target.value)}
+            className={`input ${conflito ? "border-rose-400 focus:ring-rose-400" : ""}`}
+          >
             <option value="">A definir</option>
             {ambientes.slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
           </select>
+          {conflito && (
+            <p className="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" /> Esse espaço já foi alocado para {outrasNesseAmbiente === 1 ? "outra oficina aprovada" : `${outrasNesseAmbiente} outras oficinas aprovadas`}.
+            </p>
+          )}
         </Field>
         <Field label="Feedback (se solicitar ajustes)">
           <input value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="O que precisa mudar?" className="input" />
