@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { storage } from "./lib/storage";
 import { buscarProfessor, criarProfessor, senhaValida } from "./lib/auth";
+import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
   AlertTriangle, ArrowLeft, Plus, Trash2, GraduationCap, ShieldCheck,
@@ -313,15 +314,16 @@ function ProfessorLogin({ onBack, onLogin }) {
 
         {etapa === "nome" && (
           <>
-            <p className="text-slate-600 mb-4">Informe seu nome para cadastrar ou consultar suas oficinas.</p>
-            <input
+            <p className="text-slate-600 mb-4">Selecione seu nome para cadastrar ou consultar suas oficinas.</p>
+            <select
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && continuarComNome()}
-              placeholder="Seu nome completo"
               autoFocus
               className="input mb-3"
-            />
+            >
+              <option value="">Selecione…</option>
+              {PROFESSORES_LISTA.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
             {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
             <button
               disabled={!nome.trim() || carregando}
@@ -487,14 +489,21 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
 function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) {
   const [nome, setNome] = useState(initial?.nome || "");
   const [modoEquipe, setModoEquipe] = useState(initial?.modoEquipe || "sozinho");
-  const [colegas, setColegas] = useState(initial?.colegas || "");
+  const [colegas, setColegas] = useState(
+    initial?.colegas ? initial.colegas.split(",").map((c) => c.trim()).filter(Boolean) : []
+  );
   const [qtdAlunos, setQtdAlunos] = useState(initial?.qtdAlunos || "");
   const [descricao, setDescricao] = useState(initial?.descricao || "");
   const [materiais, setMateriais] = useState(initial?.materiais || "");
   const [ambienteTipo, setAmbienteTipo] = useState(initial?.ambienteTipo || "sala");
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
 
-  const valid = nome.trim() && qtdAlunos && descricao.trim() && (modoEquipe === "sozinho" || colegas.trim());
+  function toggleColega(p) {
+    setColegas((atual) => (atual.includes(p) ? atual.filter((c) => c !== p) : [...atual, p]));
+  }
+
+  const opcoesColegas = PROFESSORES_LISTA.filter((p) => p !== professorNome);
+  const valid = nome.trim() && qtdAlunos && descricao.trim() && (modoEquipe === "sozinho" || colegas.length > 0);
 
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-5">
@@ -515,12 +524,22 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
             </label>
           </div>
           {modoEquipe === "parceria" && (
-            <input
-              value={colegas}
-              onChange={(e) => setColegas(e.target.value)}
-              placeholder="Nome dos demais professores parceiros"
-              className="input mt-2"
-            />
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {opcoesColegas.map((p) => (
+                <button
+                  type="button"
+                  key={p}
+                  onClick={() => toggleColega(p)}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
+                    colegas.includes(p)
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : "border-stone-300 text-slate-600 hover:border-indigo-300"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           )}
         </Field>
         <Field label="Quantidade estimada de alunos">
@@ -555,7 +574,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
         {initial && <button onClick={onCancel} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-500 border border-stone-300">Cancelar</button>}
         <button
           disabled={!valid}
-          onClick={() => onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.trim() : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() })}
+          onClick={() => onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() })}
           className="flex-1 flex items-center justify-center gap-2 bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
         >
           <Plus className="w-4 h-4" /> {initial ? "Reenviar oficina" : "Cadastrar oficina"}
