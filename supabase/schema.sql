@@ -20,6 +20,8 @@ create table if not exists oficinas (
   id                text primary key,
   professor         text not null,
   nome              text not null,
+  modo_equipe       text not null default 'sozinho' check (modo_equipe in ('sozinho', 'parceria')),
+  colegas           text,   -- nomes dos professores parceiros, quando modo_equipe = 'parceria'
   descricao         text not null,
   qtd_alunos        int4 not null,
   materiais         text,

@@ -460,6 +460,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                   <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> ~{o.qtdAlunos} alunos</span>
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {o.ambienteTipo === "sala" ? "Sala convencional" : `Outro espaço: ${o.ambienteDetalhe || "a definir"}`}</span>
                 </div>
+                {o.modoEquipe === "parceria" && o.colegas && <p className="text-xs text-slate-400 mt-2">Em parceria com: {o.colegas}</p>}
                 {o.materiais && <p className="text-xs text-slate-400 mt-2">Materiais: {o.materiais}</p>}
                 {o.status === "ajustes" && o.feedback && (
                   <div className="mt-2 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg px-3 py-2">
@@ -485,13 +486,15 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
 
 function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) {
   const [nome, setNome] = useState(initial?.nome || "");
+  const [modoEquipe, setModoEquipe] = useState(initial?.modoEquipe || "sozinho");
+  const [colegas, setColegas] = useState(initial?.colegas || "");
   const [qtdAlunos, setQtdAlunos] = useState(initial?.qtdAlunos || "");
   const [descricao, setDescricao] = useState(initial?.descricao || "");
   const [materiais, setMateriais] = useState(initial?.materiais || "");
   const [ambienteTipo, setAmbienteTipo] = useState(initial?.ambienteTipo || "sala");
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
 
-  const valid = nome.trim() && qtdAlunos && descricao.trim();
+  const valid = nome.trim() && qtdAlunos && descricao.trim() && (modoEquipe === "sozinho" || colegas.trim());
 
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-5">
@@ -500,13 +503,33 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
         <Field label="Nome da oficina">
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
         </Field>
+        <Field label="Condução da oficina">
+          <div className="flex gap-3">
+            <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${modoEquipe === "sozinho" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+              <input type="radio" className="hidden" checked={modoEquipe === "sozinho"} onChange={() => setModoEquipe("sozinho")} />
+              Vou conduzir a oficina sozinho
+            </label>
+            <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${modoEquipe === "parceria" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+              <input type="radio" className="hidden" checked={modoEquipe === "parceria"} onChange={() => setModoEquipe("parceria")} />
+              Vou fazer em parceria com outros professores
+            </label>
+          </div>
+          {modoEquipe === "parceria" && (
+            <input
+              value={colegas}
+              onChange={(e) => setColegas(e.target.value)}
+              placeholder="Nome dos demais professores parceiros"
+              className="input mt-2"
+            />
+          )}
+        </Field>
         <Field label="Quantidade estimada de alunos">
           <input type="number" min="1" value={qtdAlunos} onChange={(e) => setQtdAlunos(e.target.value)} placeholder="Mínimo: 30" className="input" />
         </Field>
         <Field label="Descrição breve da oficina">
           <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} placeholder="Tenha em mente que esse é o resumo que o aluno lerá para se inscrever no que você está propondo." className="input resize-none" />
         </Field>
-        <Field label="Materiais necessários (quantidades a definir posteriormente)">
+        <Field label="Materiais necessários (quantidades serão solicitadas após aprovação)">
           <input value={materiais} onChange={(e) => setMateriais(e.target.value)} placeholder="Ex.: microfone, cartolinas, projetor" className="input" />
         </Field>
         <Field label="Ambiente necessário">
@@ -532,7 +555,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
         {initial && <button onClick={onCancel} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-500 border border-stone-300">Cancelar</button>}
         <button
           disabled={!valid}
-          onClick={() => onSubmit({ nome: nome.trim(), qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() })}
+          onClick={() => onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.trim() : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() })}
           className="flex-1 flex items-center justify-center gap-2 bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
         >
           <Plus className="w-4 h-4" /> {initial ? "Reenviar oficina" : "Cadastrar oficina"}
@@ -733,6 +756,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, onUpdate, onRemove }) {
         <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas} inscritos</span>
         <span>{oficina.ambienteTipo === "sala" ? "Sala convencional" : `Outro: ${oficina.ambienteDetalhe || "—"}`}</span>
         {oficina.materiais && <span>Materiais: {oficina.materiais}</span>}
+        {oficina.modoEquipe === "parceria" && oficina.colegas && <span>Em parceria com: {oficina.colegas}</span>}
       </div>
 
       <div className="grid sm:grid-cols-3 gap-2 mt-3">
