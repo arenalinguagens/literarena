@@ -549,7 +549,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
           <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} placeholder="Tenha em mente que esse é o resumo que o aluno lerá para se inscrever no que você está propondo." className="input resize-none" />
         </Field>
         <Field label="Materiais necessários (quantidades serão solicitadas após aprovação)">
-          <input value={materiais} onChange={(e) => setMateriais(e.target.value)} placeholder="Ex.: microfone, cartolinas, projetor" className="input" />
+          <input value={materiais} onChange={(e) => setMateriais(e.target.value)} placeholder="Ex.: cartolina, tinta, farinha de trigo, material de papelaria etc." className="input" />
         </Field>
         <Field label="Ambiente necessário">
           <div className="flex gap-3">
