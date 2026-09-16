@@ -208,6 +208,7 @@ function Home({ onNav, totals }) {
             <Ticket className="w-5 h-5 text-amber-400" />
             <div className="text-left">
               <div className="text-xs text-indigo-300 uppercase tracking-wide">23 de outubro · manhã</div>
+              <div className="text-xs text-indigo-300">3º e 4º horários: 6º e 7º ano · 5º e 6º horários: 8º e 9º ano</div>
               <div className="font-serif font-semibold">Sessão única do festival</div>
             </div>
           </div>
