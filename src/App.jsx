@@ -65,9 +65,9 @@ export default function App() {
 
   useEffect(() => { loadAll(); }, []);
 
-  function flash(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+  function flash(msg, isError = false) {
+    setToast({ msg, isError });
+    setTimeout(() => setToast(null), isError ? 7000 : 2600);
   }
 
   async function loadAll() {
@@ -105,12 +105,17 @@ export default function App() {
     }
   }
 
+  // Retorna true se realmente salvou. Se falhar, desfaz a mudança otimista
+  // (a tela nunca mostra algo como salvo quando na verdade não foi).
   async function persist(key, value, setter, previous) {
     setter(value);
     try {
       await storage.set(key, JSON.stringify(value), previous);
-    } catch {
-      flash("Erro ao salvar. Verifique sua conexão e tente de novo.");
+      return true;
+    } catch (e) {
+      setter(previous);
+      flash("Não foi possível salvar — tente de novo. Se persistir, avise a coordenação.", true);
+      return false;
     }
   }
 
@@ -133,8 +138,14 @@ export default function App() {
   return (
     <div className="min-h-[600px] bg-stone-50 font-sans text-slate-800">
       {toast && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-indigo-950 text-amber-200 text-sm px-4 py-2 rounded-full shadow-lg border border-indigo-800">
-          {toast}
+        <div
+          className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 text-sm px-4 py-2.5 rounded-full shadow-lg border max-w-[90vw] text-center ${
+            toast.isError
+              ? "bg-rose-600 text-white border-rose-800 font-semibold"
+              : "bg-indigo-950 text-amber-200 border-indigo-800"
+          }`}
+        >
+          {toast.msg}
         </div>
       )}
       {err && (
@@ -442,16 +453,20 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
             initial={editing}
             ambientes={ambientes}
             onCancel={() => { setEditing(null); setTab("minhas"); }}
-            onSubmit={(data) => {
+            onSubmit={async (data) => {
+              let ok;
               if (editing) {
-                saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
-                flash("Oficina atualizada e reenviada para aprovação.");
+                ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
+                if (ok) flash("Oficina atualizada e reenviada para aprovação.");
               } else {
-                saveOficinas([...oficinas, { id: uid(), professor: professorNome, status: "pendente", vagas: data.qtdAlunos, ambienteAlocado: "", createdAt: Date.now(), ...data }]);
-                flash("Oficina cadastrada! Aguarde a aprovação da coordenação.");
+                ok = await saveOficinas([...oficinas, { id: uid(), professor: professorNome, status: "pendente", vagas: data.qtdAlunos, ambienteAlocado: "", createdAt: Date.now(), ...data }]);
+                if (ok) flash("Oficina cadastrada! Aguarde a aprovação da coordenação.");
               }
-              setEditing(null);
-              setTab("minhas");
+              if (ok) {
+                setEditing(null);
+                setTab("minhas");
+              }
+              return ok;
             }}
           />
         )}
@@ -507,6 +522,16 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
   const [materiais, setMateriais] = useState(initial?.materiais || "");
   const [ambienteTipo, setAmbienteTipo] = useState(initial?.ambienteTipo || "sala");
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
+  const [salvando, setSalvando] = useState(false);
+
+  async function enviar() {
+    setSalvando(true);
+    try {
+      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() });
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   function toggleColega(p) {
     setColegas((atual) => (atual.includes(p) ? atual.filter((c) => c !== p) : [...atual, p]));
@@ -583,11 +608,11 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
       <div className="flex gap-2 mt-5">
         {initial && <button onClick={onCancel} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-500 border border-stone-300">Cancelar</button>}
         <button
-          disabled={!valid}
-          onClick={() => onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() })}
+          disabled={!valid || salvando}
+          onClick={enviar}
           className="flex-1 flex items-center justify-center gap-2 bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
         >
-          <Plus className="w-4 h-4" /> {initial ? "Reenviar oficina" : "Cadastrar oficina"}
+          <Plus className="w-4 h-4" /> {salvando ? "Salvando…" : initial ? "Reenviar oficina" : "Cadastrar oficina"}
         </button>
       </div>
       <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>

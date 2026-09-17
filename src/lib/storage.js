@@ -6,6 +6,16 @@
 
 import { supabase } from "./supabaseClient";
 
+// PGRST204 = PostgREST não achou a coluna no schema cache; 42703 = Postgres
+// "coluna não existe". Cobre os dois formatos de erro que podem chegar aqui.
+function colunaAusente(error) {
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    /column .* (does not exist|schema cache)/i.test(error?.message || "")
+  );
+}
+
 const TABLES = {
   oficinas: {
     table: "oficinas",
@@ -28,6 +38,15 @@ const TABLES = {
       feedback: o.feedback ?? null,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
+    // Usado só se o banco ainda não tiver as colunas modo_equipe/colegas
+    // (migração não rodada): salva a oficina mesmo assim, sem esses dois
+    // campos, em vez de falhar a gravação inteira.
+    toRowSemColunasNovas: (o) => {
+      const row = TABLES.oficinas.toRow(o);
+      delete row.modo_equipe;
+      delete row.colegas;
+      return row;
+    },
     fromRow: (r) => ({
       id: r.id,
       professor: r.professor,
@@ -114,7 +133,21 @@ export const storage = {
       const { error: upsertError } = await supabase
         .from(cfg.table)
         .upsert(rows, { onConflict: cfg.idField });
-      if (upsertError) throw upsertError;
+
+      if (upsertError) {
+        // Coluna nova ainda não existe no banco (migração não rodada) —
+        // tenta salvar de novo sem ela, pra nunca perder a oficina inteira
+        // por causa de um campo extra.
+        if (cfg.toRowSemColunasNovas && colunaAusente(upsertError)) {
+          const rowsSemColunasNovas = incoming.map(cfg.toRowSemColunasNovas);
+          const { error: fallbackError } = await supabase
+            .from(cfg.table)
+            .upsert(rowsSemColunasNovas, { onConflict: cfg.idField });
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw upsertError;
+        }
+      }
     }
 
     return { value };
