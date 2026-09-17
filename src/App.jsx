@@ -949,6 +949,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [identificado, setIdentificado] = useState(false);
+  const [processando, setProcessando] = useState(false);
 
   const minhaInscricao = useMemo(
     () => inscricoes.find((i) => i.matricula === matricula),
@@ -999,13 +1000,16 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
             </div>
           </div>
           <button
-            onClick={() => {
-              saveInscricoes(inscricoes.filter((i) => i.matricula !== matricula));
-              flash("Inscrição cancelada. Você pode escolher outra oficina.");
+            disabled={processando}
+            onClick={async () => {
+              setProcessando(true);
+              const ok = await saveInscricoes(inscricoes.filter((i) => i.matricula !== matricula));
+              setProcessando(false);
+              if (ok) flash("Inscrição cancelada. Você pode escolher outra oficina.");
             }}
-            className="w-full mt-4 text-sm font-semibold text-rose-600 hover:text-rose-800"
+            className="w-full mt-4 text-sm font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-40"
           >
-            Cancelar e escolher outra oficina
+            {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
           </button>
         </div>
       </div>
@@ -1033,15 +1037,17 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
                   </div>
                 </div>
                 <button
-                  disabled={cheia}
-                  onClick={() => {
+                  disabled={cheia || processando}
+                  onClick={async () => {
                     if (!confirm(`Tem certeza que quer se inscrever em "${o.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
-                    saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), oficinaId: o.id, timestamp: Date.now() }]);
-                    flash("Inscrição confirmada!");
+                    setProcessando(true);
+                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), oficinaId: o.id, timestamp: Date.now() }]);
+                    setProcessando(false);
+                    if (ok) flash("Inscrição confirmada!");
                   }}
                   className="shrink-0 text-xs font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-indigo-950 px-4 py-2 rounded-lg"
                 >
-                  {cheia ? "Lotada" : "Escolher"}
+                  {cheia ? "Lotada" : processando ? "Enviando…" : "Escolher"}
                 </button>
               </div>
             );
