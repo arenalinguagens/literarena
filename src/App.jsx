@@ -11,6 +11,22 @@ import {
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+const SERIES = ["6º ano", "7º ano", "8º ano", "9º ano"];
+function horarioPorSerie(serie) {
+  if (serie === "6º ano" || serie === "7º ano") return "3º horário";
+  if (serie === "8º ano" || serie === "9º ano") return "5º horário";
+  return "";
+}
+
+function descricaoProfessores(oficina) {
+  if (!oficina) return "";
+  const nomes = oficina.modoEquipe === "parceria" && oficina.colegas
+    ? [oficina.professor, ...oficina.colegas.split(",").map((c) => c.trim()).filter(Boolean)]
+    : [oficina.professor];
+  if (nomes.length === 1) return `com o professor ${nomes[0]}`;
+  return `com os professores ${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
+
 const DEFAULT_AMBIENTES = [
   "Biblioteca", "Maker 1", "Maker 2", "Estúdio de Música", "Ateliê de Artes",
   "Sala de Dança", "Sala Multifuncional", "Cozinha Experimental", "Fazendinha",
@@ -948,6 +964,8 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes }) {
 function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
+  const [serie, setSerie] = useState("");
+  const [turma, setTurma] = useState("");
   const [identificado, setIdentificado] = useState(false);
   const [processando, setProcessando] = useState(false);
 
@@ -962,11 +980,18 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
         <BackBar onBack={onBack} title="Portal do Aluno" />
         <div className="max-w-sm mx-auto px-6 py-16 text-center">
           <Ticket className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
-          <p className="text-slate-600 mb-4">Informe sua matrícula e nome para escolher sua oficina.</p>
+          <p className="text-slate-600 mb-4">Informe seus dados para escolher sua oficina.</p>
           <input value={matricula} onChange={(e) => setMatricula(e.target.value.trim())} placeholder="Número de matrícula" className="input mb-3" />
           <input value={nomeAluno} onChange={(e) => setNomeAluno(e.target.value)} placeholder="Seu nome completo" className="input mb-3" />
+          <div className="flex gap-3 mb-3">
+            <select value={serie} onChange={(e) => setSerie(e.target.value)} className="input">
+              <option value="">Série</option>
+              {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <input value={turma} onChange={(e) => setTurma(e.target.value)} placeholder="Turma (ex.: A)" className="input" />
+          </div>
           <button
-            disabled={!matricula || !nomeAluno.trim()}
+            disabled={!matricula || !nomeAluno.trim() || !serie || !turma.trim()}
             onClick={() => setIdentificado(true)}
             className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
           >
@@ -991,11 +1016,13 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
             <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">LiterArena · Edição 2026</p>
             <p className="text-xs uppercase tracking-widest text-indigo-300 mb-1">Comprovante de inscrição</p>
             <h3 className="font-serif text-2xl font-bold mb-1">{oficina?.nome || "Oficina removida"}</h3>
-            <p className="text-indigo-300 text-sm mb-4">com {oficina?.professor}</p>
+            <p className="text-indigo-300 text-sm mb-4">{descricaoProfessores(oficina)}</p>
             <div className="border-t border-dashed border-indigo-700 pt-4 text-sm text-left grid grid-cols-2 gap-y-1">
               <span className="text-indigo-400">Aluno</span><span>{minhaInscricao.nomeAluno}</span>
               <span className="text-indigo-400">Matrícula</span><span>{minhaInscricao.matricula}</span>
+              <span className="text-indigo-400">Série/turma</span><span>{minhaInscricao.serie} {minhaInscricao.turma}</span>
               <span className="text-indigo-400">Data</span><span>23 de outubro, manhã</span>
+              <span className="text-indigo-400">Horário</span><span>{horarioPorSerie(minhaInscricao.serie)}</span>
               {oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
             </div>
           </div>
@@ -1054,7 +1081,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
                   onClick={async () => {
                     if (!confirm(`Tem certeza que quer se inscrever em "${o.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
                     setProcessando(true);
-                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), oficinaId: o.id, timestamp: Date.now() }]);
+                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, timestamp: Date.now() }]);
                     setProcessando(false);
                     if (ok) flash("Inscrição confirmada!");
                   }}

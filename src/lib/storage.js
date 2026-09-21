@@ -77,12 +77,24 @@ const TABLES = {
     toRow: (i) => ({
       matricula: i.matricula,
       nome_aluno: i.nomeAluno,
+      serie: i.serie ?? null,
+      turma: i.turma ?? null,
       oficina_id: i.oficinaId,
       timestamp: new Date(i.timestamp ?? Date.now()).toISOString(),
     }),
+    // Usado só se o banco ainda não tiver as colunas serie/turma (migração
+    // não rodada): salva a inscrição mesmo assim, sem esses dois campos.
+    toRowSemColunasNovas: (i) => {
+      const row = TABLES.inscricoes.toRow(i);
+      delete row.serie;
+      delete row.turma;
+      return row;
+    },
     fromRow: (r) => ({
       matricula: r.matricula,
       nomeAluno: r.nome_aluno,
+      serie: r.serie ?? "",
+      turma: r.turma ?? "",
       oficinaId: r.oficina_id,
       timestamp: new Date(r.timestamp).getTime(),
     }),

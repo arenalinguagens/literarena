@@ -41,6 +41,8 @@ create table if not exists oficinas (
 create table if not exists inscricoes (
   matricula   text primary key,
   nome_aluno  text not null,
+  serie       text,   -- "6º ano" a "9º ano"
+  turma       text,
   oficina_id  text references oficinas(id) on delete set null,
   "timestamp" timestamptz not null default now()
 );
