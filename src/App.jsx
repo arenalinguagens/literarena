@@ -5,7 +5,7 @@ import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
   AlertTriangle, ArrowLeft, Plus, Trash2, GraduationCap, ShieldCheck,
-  Ticket, MapPin, LogOut, RefreshCw, X
+  Ticket, MapPin, LogOut, RefreshCw, X, Printer
 } from "lucide-react";
 
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
@@ -986,7 +986,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
       <div>
         <BackBar onBack={onBack} title="Minha Inscrição" />
         <div className="max-w-md mx-auto px-6 py-10">
-          <div className="bg-indigo-950 text-stone-50 rounded-2xl p-6 text-center relative overflow-hidden">
+          <div id="comprovante-imprimivel" className="bg-indigo-950 text-stone-50 rounded-2xl p-6 text-center relative overflow-hidden">
             <Ticket className="w-8 h-8 mx-auto text-amber-400 mb-2" />
             <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">LiterArena · Edição 2026</p>
             <p className="text-xs uppercase tracking-widest text-indigo-300 mb-1">Comprovante de inscrição</p>
@@ -1000,6 +1000,12 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
             </div>
           </div>
           <button
+            onClick={() => window.print()}
+            className="w-full mt-4 flex items-center justify-center gap-2 bg-indigo-950 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
+          >
+            <Printer className="w-4 h-4" /> Imprimir ou salvar em PDF
+          </button>
+          <button
             disabled={processando}
             onClick={async () => {
               setProcessando(true);
@@ -1011,6 +1017,13 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
           >
             {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
           </button>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #comprovante-imprimivel, #comprovante-imprimivel * { visibility: visible; }
+              #comprovante-imprimivel { position: absolute; left: 0; top: 0; width: 100%; }
+            }
+          `}</style>
         </div>
       </div>
     );
