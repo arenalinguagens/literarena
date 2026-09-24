@@ -814,6 +814,8 @@ function Stat({ icon: Icon, label, value }) {
 }
 
 function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate, onRemove }) {
+  const [nome, setNome] = useState(oficina.nome);
+  const [descricao, setDescricao] = useState(oficina.descricao);
   const [feedback, setFeedback] = useState(oficina.feedback || "");
   const [vagas, setVagas] = useState(oficina.vagas);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
@@ -822,16 +824,26 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
     ? (alocacaoCount[ambienteAlocado] || 0) - 1
     : (alocacaoCount[ambienteAlocado] || 0);
   const conflito = ambienteAlocado && outrasNesseAmbiente > 0;
+  const editValido = nome.trim() && descricao.trim();
+
+  function salvarTexto(changes) {
+    onUpdate(oficina.id, { nome: nome.trim(), descricao: descricao.trim(), ...changes });
+  }
 
   return (
     <div className="border border-stone-200 rounded-xl p-4 bg-white">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-serif font-bold text-indigo-950">{oficina.nome}</h3>
-          <p className="text-xs text-slate-400">{oficina.professor}</p>
-          <p className="text-sm text-slate-600 mt-1">{oficina.descricao}</p>
-        </div>
+        <p className="text-xs text-slate-400">{oficina.professor}</p>
         <StatusBadge status={oficina.status} />
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-2 mt-2">
+        <Field label="Título da oficina">
+          <input value={nome} onChange={(e) => setNome(e.target.value)} className="input font-serif font-bold" />
+        </Field>
+        <Field label="Descrição">
+          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} className="input resize-none" />
+        </Field>
       </div>
 
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
@@ -866,9 +878,9 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button onClick={() => onUpdate(oficina.id, { status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
-        <button onClick={() => onUpdate(oficina.id, { status: "ajustes", feedback })} className="text-xs font-semibold bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg">Solicitar ajustes</button>
-        <button onClick={() => onUpdate(oficina.id, { vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
+        <button disabled={!editValido} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        <button disabled={!editValido} onClick={() => salvarTexto({ status: "ajustes", feedback })} className="text-xs font-semibold bg-rose-100 hover:bg-rose-200 disabled:opacity-40 text-rose-700 px-3 py-1.5 rounded-lg">Solicitar ajustes</button>
+        <button disabled={!editValido} onClick={() => salvarTexto({ vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
       </div>
     </div>
