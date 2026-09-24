@@ -11,9 +11,27 @@ import {
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// Bloqueio temporário do login do professor. Trocar para false quando
-// puder liberar de novo.
-const PROFESSOR_LOGIN_BLOQUEADO = true;
+// Bloqueio temporário do login do professor (usado durante a reconstrução
+// manual dos dados). Deixe true para reativar a mensagem de manutenção.
+const PROFESSOR_LOGIN_BLOQUEADO = false;
+
+// Lista de materiais é guardada como JSON (array de {item, quantidade})
+// dentro do mesmo campo de texto "materiais" que já existia.
+function parseMateriais(materiais) {
+  if (!materiais) return [];
+  try {
+    const lista = JSON.parse(materiais);
+    return Array.isArray(lista) ? lista : [];
+  } catch {
+    return [];
+  }
+}
+function formatarMateriais(materiais) {
+  return parseMateriais(materiais)
+    .filter((m) => m.item?.trim())
+    .map((m) => (m.quantidade?.trim() ? `${m.item} (${m.quantidade})` : m.item))
+    .join(", ");
+}
 
 const SERIES = ["6º ano", "7º ano", "8º ano", "9º ano"];
 function horarioPorSerie(serie) {
@@ -538,7 +556,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {o.ambienteTipo === "sala" ? "Sala convencional" : `Outro espaço: ${o.ambienteDetalhe || "a definir"}`}</span>
                 </div>
                 {o.modoEquipe === "parceria" && o.colegas && <p className="text-xs text-slate-400 mt-2">Em parceria com: {o.colegas}</p>}
-                {o.materiais && <p className="text-xs text-slate-400 mt-2">Materiais: {o.materiais}</p>}
+                {formatarMateriais(o.materiais) && <p className="text-xs text-slate-400 mt-2">Materiais: {formatarMateriais(o.materiais)}</p>}
                 {o.status === "ajustes" && o.feedback && (
                   <div className="mt-2 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg px-3 py-2">
                     <strong>Retorno da coordenação:</strong> {o.feedback}
@@ -569,15 +587,18 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
   );
   const [qtdAlunos, setQtdAlunos] = useState(initial?.qtdAlunos || "");
   const [descricao, setDescricao] = useState(initial?.descricao || "");
-  const [materiais, setMateriais] = useState(initial?.materiais || "");
+  const [materiais, setMateriais] = useState(parseMateriais(initial?.materiais));
   const [ambienteTipo, setAmbienteTipo] = useState(initial?.ambienteTipo || "sala");
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
+  const [tituloAprovado, setTituloAprovado] = useState(initial ? !!initial.tituloAprovado : true);
+  const [descricaoAprovado, setDescricaoAprovado] = useState(initial ? !!initial.descricaoAprovado : true);
   const [salvando, setSalvando] = useState(false);
 
   async function enviar() {
     setSalvando(true);
     try {
-      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: materiais.trim(), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim() });
+      const materiaisLimpos = materiais.filter((m) => m.item.trim());
+      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: JSON.stringify(materiaisLimpos), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim(), tituloAprovado, descricaoAprovado });
     } finally {
       setSalvando(false);
     }
@@ -585,6 +606,16 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
 
   function toggleColega(p) {
     setColegas((atual) => (atual.includes(p) ? atual.filter((c) => c !== p) : [...atual, p]));
+  }
+
+  function addMaterial() {
+    setMateriais((m) => [...m, { item: "", quantidade: "" }]);
+  }
+  function updateMaterial(i, campo, valor) {
+    setMateriais((m) => m.map((mat, idx) => (idx === i ? { ...mat, [campo]: valor } : mat)));
+  }
+  function removeMaterial(i) {
+    setMateriais((m) => m.filter((_, idx) => idx !== i));
   }
 
   const opcoesColegas = PROFESSORES_LISTA.filter((p) => p !== professorNome);
@@ -596,6 +627,12 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
       <div className="space-y-4">
         <Field label="Nome da oficina">
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
+          {initial && !initial.tituloAprovado && (
+            <label className="flex items-center gap-2 mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <input type="checkbox" checked={tituloAprovado} onChange={(e) => setTituloAprovado(e.target.checked)} />
+              Título aprovado
+            </label>
+          )}
         </Field>
         <Field label="Condução da oficina">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -632,9 +669,42 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
         </Field>
         <Field label="Descrição breve da oficina">
           <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} placeholder="Tenha em mente que esse é o resumo que o aluno lerá para se inscrever no que você está propondo." className="input resize-none" />
+          {initial && !initial.descricaoAprovado && (
+            <label className="flex items-center gap-2 mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <input type="checkbox" checked={descricaoAprovado} onChange={(e) => setDescricaoAprovado(e.target.checked)} />
+              Descrição aprovada
+            </label>
+          )}
         </Field>
-        <Field label="Materiais necessários (quantidades serão solicitadas após aprovação)">
-          <input value={materiais} onChange={(e) => setMateriais(e.target.value)} placeholder="Ex.: cartolina, tinta, farinha de trigo, material de papelaria etc." className="input" />
+        <Field label="Materiais que o aluno deve levar">
+          <p className="text-xs text-slate-400 mb-2">Esses itens aparecerão no comprovante de inscrição do aluno.</p>
+          <div className="space-y-2">
+            {materiais.map((mat, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={mat.item}
+                  onChange={(e) => updateMaterial(i, "item", e.target.value)}
+                  placeholder="Ex.: cola bastão"
+                  className="input flex-1"
+                />
+                <input
+                  value={mat.quantidade}
+                  onChange={(e) => updateMaterial(i, "quantidade", e.target.value)}
+                  placeholder="Qtd."
+                  className="input shrink-0"
+                  style={{ width: "6rem" }}
+                />
+                <button type="button" onClick={() => removeMaterial(i)} className="text-rose-400 hover:text-rose-600 shrink-0"><X className="w-4 h-4" /></button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addMaterial}
+              className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar material
+            </button>
+          </div>
         </Field>
         <Field label="Ambiente necessário">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -786,6 +856,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
         {tab === "oficinas" && (
           <div>
+            <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} flash={flash} />
             <div className="flex gap-2 mb-4 flex-wrap">
               {["todas", "pendente", "aprovada", "ajustes"].map((f) => (
                 <button key={f} onClick={() => setFiltro(f)} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${filtro === f ? "bg-indigo-950 text-white border-indigo-950" : "border-stone-300 text-slate-500"}`}>
@@ -837,6 +908,78 @@ function Stat({ icon: Icon, label, value }) {
   );
 }
 
+function AdminCriarOficina({ saveOficinas, oficinas, flash }) {
+  const [professor, setProfessor] = useState("");
+  const [nome, setNome] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const valid = professor && nome.trim() && descricao.trim();
+
+  async function criar() {
+    setSalvando(true);
+    try {
+      const ok = await saveOficinas([
+        ...oficinas,
+        {
+          id: uid(),
+          professor,
+          nome: nome.trim(),
+          descricao: descricao.trim(),
+          modoEquipe: "sozinho",
+          colegas: "",
+          qtdAlunos: 0,
+          materiais: "[]",
+          ambienteTipo: "sala",
+          ambienteDetalhe: "",
+          status: "pendente",
+          vagas: null,
+          ambienteAlocado: "",
+          feedback: "",
+          tituloAprovado: false,
+          descricaoAprovado: false,
+          createdAt: Date.now(),
+        },
+      ]);
+      if (ok) {
+        flash(`Oficina cadastrada para ${professor}. Quando ele/ela logar, vai confirmar título/descrição e completar os detalhes (vagas, ambiente, materiais).`);
+        setProfessor("");
+        setNome("");
+        setDescricao("");
+      }
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-4 mb-4">
+      <h3 className="font-serif font-bold text-indigo-950 mb-3">Cadastrar oficina manualmente</h3>
+      <div className="space-y-3">
+        <Field label="Professor">
+          <select value={professor} onChange={(e) => setProfessor(e.target.value)} className="input">
+            <option value="">Selecione…</option>
+            {PROFESSORES_LISTA.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </Field>
+        <Field label="Título da oficina">
+          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
+        </Field>
+        <Field label="Descrição">
+          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} className="input resize-none" />
+        </Field>
+      </div>
+      <button
+        disabled={!valid || salvando}
+        onClick={criar}
+        className="mt-3 text-sm font-semibold bg-indigo-950 disabled:opacity-40 text-white px-4 py-2 rounded-lg flex items-center gap-1"
+      >
+        <Plus className="w-4 h-4" /> {salvando ? "Cadastrando…" : "Cadastrar oficina"}
+      </button>
+    </div>
+  );
+}
+
 function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate, onRemove }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
@@ -849,6 +992,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
     : (alocacaoCount[ambienteAlocado] || 0);
   const conflito = ambienteAlocado && outrasNesseAmbiente > 0;
   const editValido = nome.trim() && descricao.trim();
+  const aguardandoConfirmacao = !oficina.tituloAprovado || !oficina.descricaoAprovado;
 
   function salvarTexto(changes) {
     onUpdate(oficina.id, { nome: nome.trim(), descricao: descricao.trim(), ...changes });
@@ -870,10 +1014,16 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
         </Field>
       </div>
 
+      {aguardandoConfirmacao && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mt-2 flex items-center gap-1 w-fit">
+          <AlertTriangle className="w-3.5 h-3.5" /> Aguardando o professor confirmar: {[!oficina.tituloAprovado && "título", !oficina.descricaoAprovado && "descrição"].filter(Boolean).join(" e ")}.
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
         <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas} inscritos</span>
         <span>{oficina.ambienteTipo === "sala" ? "Sala convencional" : `Outro: ${oficina.ambienteDetalhe || "—"}`}</span>
-        {oficina.materiais && <span>Materiais: {oficina.materiais}</span>}
+        {formatarMateriais(oficina.materiais) && <span>Materiais: {formatarMateriais(oficina.materiais)}</span>}
         {oficina.modoEquipe === "parceria" && oficina.colegas && <span>Em parceria com: {oficina.colegas}</span>}
       </div>
 
@@ -902,7 +1052,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button disabled={!editValido} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título/descrição" : ""} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
         <button disabled={!editValido} onClick={() => salvarTexto({ status: "ajustes", feedback })} className="text-xs font-semibold bg-rose-100 hover:bg-rose-200 disabled:opacity-40 text-rose-700 px-3 py-1.5 rounded-lg">Solicitar ajustes</button>
         <button disabled={!editValido} onClick={() => salvarTexto({ vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
@@ -1061,6 +1211,12 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
               <span className="text-indigo-400">Horário</span><span>{horarioPorSerie(minhaInscricao.serie)}</span>
               {oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
             </div>
+            {formatarMateriais(oficina?.materiais) && (
+              <div className="border-t border-dashed border-indigo-700 pt-3 mt-3 text-sm text-left">
+                <span className="text-indigo-400 text-xs uppercase tracking-wide">Materiais que o aluno deve levar</span>
+                <p className="mt-1">{formatarMateriais(oficina.materiais)}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={() => window.print()}

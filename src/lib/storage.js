@@ -36,15 +36,19 @@ const TABLES = {
       vagas: o.vagas ?? null,
       ambiente_alocado: o.ambienteAlocado ?? null,
       feedback: o.feedback ?? null,
+      titulo_aprovado: o.tituloAprovado ?? true,
+      descricao_aprovado: o.descricaoAprovado ?? true,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
-    // Usado só se o banco ainda não tiver as colunas modo_equipe/colegas
-    // (migração não rodada): salva a oficina mesmo assim, sem esses dois
-    // campos, em vez de falhar a gravação inteira.
+    // Usado só se o banco ainda não tiver alguma coluna adicionada depois
+    // do schema original (migração não rodada): salva a oficina mesmo
+    // assim, sem esses campos, em vez de falhar a gravação inteira.
     toRowSemColunasNovas: (o) => {
       const row = TABLES.oficinas.toRow(o);
       delete row.modo_equipe;
       delete row.colegas;
+      delete row.titulo_aprovado;
+      delete row.descricao_aprovado;
       return row;
     },
     fromRow: (r) => ({
@@ -62,6 +66,10 @@ const TABLES = {
       vagas: r.vagas,
       ambienteAlocado: r.ambiente_alocado ?? "",
       feedback: r.feedback ?? "",
+      // Se a coluna ainda não existir no banco, trata como já aprovado
+      // pra não travar "Aprovar" de oficinas antigas por causa disso.
+      tituloAprovado: r.titulo_aprovado ?? true,
+      descricaoAprovado: r.descricao_aprovado ?? true,
       createdAt: new Date(r.created_at).getTime(),
     }),
   },

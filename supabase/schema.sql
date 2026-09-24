@@ -31,6 +31,8 @@ create table if not exists oficinas (
   vagas             int4,
   ambiente_alocado  text,   -- guarda o NOME do ambiente escolhido (não o id — ver src/App.jsx)
   feedback          text,
+  titulo_aprovado     boolean not null default true,  -- false quando a coordenação cadastra em nome do professor
+  descricao_aprovado  boolean not null default true,
   created_at        timestamptz not null default now()
 );
 
