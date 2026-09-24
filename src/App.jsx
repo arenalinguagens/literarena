@@ -836,9 +836,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("todas");
 
-  const pendentes = oficinas.filter((o) => o.status === "pendente").length;
-  const aprovadas = oficinas.filter((o) => o.status === "aprovada").length;
-
   const oficinasFiltradas = filtro === "todas" ? oficinas : oficinas.filter((o) => o.status === filtro);
 
   const alocacaoCount = {};
@@ -875,10 +872,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <Stat icon={GraduationCap} label="Professores" value={new Set(oficinas.map((o) => o.professor.toLowerCase())).size} />
               <Stat icon={Users} label="Alunos inscritos" value={inscricoes.length} />
               <Stat icon={School} label="Ambientes" value={ambientes.length} />
-            </div>
-            <div className="flex gap-3 mb-6 text-sm">
-              <div className="flex-1 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3"><span className="font-bold text-amber-800">{pendentes}</span> <span className="text-amber-700">oficinas pendentes de aprovação</span></div>
-              <div className="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3"><span className="font-bold text-emerald-800">{aprovadas}</span> <span className="text-emerald-700">oficinas aprovadas</span></div>
             </div>
             <h3 className="font-serif font-bold text-indigo-950 mb-2">Últimas oficinas cadastradas</h3>
             <div className="space-y-2">
