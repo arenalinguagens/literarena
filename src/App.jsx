@@ -731,13 +731,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
     saveOficinas(oficinas.filter((o) => o.id !== id));
   }
 
-  async function zerarDados() {
-    if (!confirm("Isso apaga TODAS as oficinas, ambientes e inscrições para todo mundo que usa este app. Confirmar?")) return;
-    await saveOficinas([]);
-    await saveAmbientes([]);
-    await saveInscricoes([]);
-    flash("Dados de teste zerados.");
-  }
 
   return (
     <div>
@@ -810,9 +803,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               })}
               {oficinas.filter((o) => o.status === "aprovada").length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
             </div>
-            <button onClick={zerarDados} className="mt-6 text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1">
-              <Trash2 className="w-3.5 h-3.5" /> Zerar todos os dados (uso de teste)
-            </button>
           </div>
         )}
       </div>
