@@ -195,7 +195,7 @@ export default function App() {
     <div className="min-h-[600px] bg-stone-50 font-sans text-slate-800">
       {toast && (
         <div
-          className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 text-sm px-4 py-2.5 rounded-full shadow-lg border max-w-[90vw] text-center ${
+          className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 text-sm px-4 py-2.5 rounded-2xl shadow-lg border max-w-[90vw] text-center ${
             toast.isError
               ? "bg-rose-600 text-white border-rose-800 font-semibold"
               : "bg-indigo-950 text-amber-200 border-indigo-800"
@@ -1034,7 +1034,6 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
 function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate, onRemove }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
-  const [feedback, setFeedback] = useState(oficina.feedback || "");
   const [vagas, setVagas] = useState(oficina.vagas);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
 
@@ -1109,14 +1108,10 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
             </p>
           )}
         </Field>
-        <Field label="Feedback (se solicitar ajustes)">
-          <input value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="O que precisa mudar?" className="input" />
-        </Field>
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
         <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
-        <button disabled={!editValido} onClick={() => salvarTexto({ status: "ajustes", feedback })} className="text-xs font-semibold bg-rose-100 hover:bg-rose-200 disabled:opacity-40 text-rose-700 px-3 py-1.5 rounded-lg">Solicitar ajustes</button>
         <button disabled={!editValido} onClick={() => salvarTexto({ vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
       </div>
