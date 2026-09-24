@@ -1044,7 +1044,9 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
   const outrasNesseAmbiente = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada"
     ? (alocacaoCount[ambienteAlocado] || 0) - 1
     : (alocacaoCount[ambienteAlocado] || 0);
-  const conflito = ambienteAlocado && outrasNesseAmbiente > 0;
+  // "Sala de aula convencional" não é um espaço único (a escola tem várias
+  // salas comuns), então duas oficinas usando essa opção não é conflito.
+  const conflito = ambienteAlocado && ambienteAlocado !== "Sala de aula convencional" && outrasNesseAmbiente > 0;
   const editValido = nome.trim() && descricao.trim();
   const ambientePendente = oficina.ambienteAlocado && !oficina.ambienteAprovado;
   const aguardandoConfirmacao = !oficina.tituloAprovado || !oficina.descricaoAprovado || ambientePendente;
