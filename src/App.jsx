@@ -706,6 +706,9 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
             {querOutroAmbiente && (
               <select value={ambienteSugestao} onChange={(e) => setAmbienteSugestao(e.target.value)} className="input mt-2">
                 <option value="">Selecione o ambiente que prefere</option>
+                {initial.ambienteAlocado !== "Sala de aula convencional" && (
+                  <option value="Sala de aula convencional">Sala de aula convencional</option>
+                )}
                 {(ambientes || [])
                   .filter((a) => a.nome !== initial.ambienteAlocado)
                   .slice()
@@ -1015,6 +1018,7 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
           <Field label="Ambiente">
             <select value={ambienteAlocado} onChange={(e) => setAmbienteAlocado(e.target.value)} className="input">
               <option value="">Selecione…</option>
+              <option value="Sala de aula convencional">Sala de aula convencional</option>
               {(ambientes || []).slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
             </select>
           </Field>
@@ -1100,6 +1104,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
             className={`input ${conflito ? "border-rose-400 focus:ring-rose-400" : ""}`}
           >
             <option value="">A definir</option>
+            <option value="Sala de aula convencional">Sala de aula convencional</option>
             {ambientes.slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
           </select>
           {conflito && (
