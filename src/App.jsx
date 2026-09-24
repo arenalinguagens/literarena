@@ -11,6 +11,10 @@ import {
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+// Bloqueio temporário do login do professor. Trocar para false quando
+// puder liberar de novo.
+const PROFESSOR_LOGIN_BLOQUEADO = true;
+
 const SERIES = ["6º ano", "7º ano", "8º ano", "9º ano"];
 function horarioPorSerie(serie) {
   if (serie === "6º ano" || serie === "7º ano") return "3º horário";
@@ -459,6 +463,19 @@ function ProfessorLogin({ onBack, onLogin }) {
 function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, flash }) {
   const [tab, setTab] = useState("nova");
   const [editing, setEditing] = useState(null);
+
+  if (PROFESSOR_LOGIN_BLOQUEADO) {
+    return (
+      <div>
+        <BackBar onBack={onBack} title="Portal do Professor" />
+        <div className="max-w-sm mx-auto px-6 py-16 text-center">
+          <AlertTriangle className="w-10 h-10 mx-auto text-amber-500 mb-3" />
+          <p className="text-slate-700 font-semibold">Sistema está sendo atualizado.</p>
+          <p className="text-slate-500 text-sm mt-1">Tente novamente mais tarde.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!professorNome) {
     return <ProfessorLogin onBack={onBack} onLogin={setProfessorNome} />;
