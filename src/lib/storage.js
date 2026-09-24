@@ -38,6 +38,8 @@ const TABLES = {
       feedback: o.feedback ?? null,
       titulo_aprovado: o.tituloAprovado ?? true,
       descricao_aprovado: o.descricaoAprovado ?? true,
+      ambiente_aprovado: o.ambienteAprovado ?? true,
+      ambiente_sugestao: o.ambienteSugestao ?? null,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
     // Usado só se o banco ainda não tiver alguma coluna adicionada depois
@@ -49,6 +51,8 @@ const TABLES = {
       delete row.colegas;
       delete row.titulo_aprovado;
       delete row.descricao_aprovado;
+      delete row.ambiente_aprovado;
+      delete row.ambiente_sugestao;
       return row;
     },
     fromRow: (r) => ({
@@ -70,6 +74,8 @@ const TABLES = {
       // pra não travar "Aprovar" de oficinas antigas por causa disso.
       tituloAprovado: r.titulo_aprovado ?? true,
       descricaoAprovado: r.descricao_aprovado ?? true,
+      ambienteAprovado: r.ambiente_aprovado ?? true,
+      ambienteSugestao: r.ambiente_sugestao ?? "",
       createdAt: new Date(r.created_at).getTime(),
     }),
   },

@@ -593,13 +593,16 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
   const [tituloAprovado, setTituloAprovado] = useState(initial ? !!initial.tituloAprovado : true);
   const [descricaoAprovado, setDescricaoAprovado] = useState(initial ? !!initial.descricaoAprovado : true);
+  const [ambienteAprovado, setAmbienteAprovado] = useState(initial ? !!initial.ambienteAprovado : true);
+  const [querOutroAmbiente, setQuerOutroAmbiente] = useState(!!initial?.ambienteSugestao);
+  const [ambienteSugestao, setAmbienteSugestao] = useState(initial?.ambienteSugestao || "");
   const [salvando, setSalvando] = useState(false);
 
   async function enviar() {
     setSalvando(true);
     try {
       const materiaisLimpos = materiais.filter((m) => m.item.trim());
-      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: JSON.stringify(materiaisLimpos), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim(), tituloAprovado, descricaoAprovado });
+      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: JSON.stringify(materiaisLimpos), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim(), tituloAprovado, descricaoAprovado, ambienteAprovado, ambienteSugestao: ambienteAprovado ? "" : ambienteSugestao });
     } finally {
       setSalvando(false);
     }
@@ -677,6 +680,41 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
             </label>
           )}
         </Field>
+        {initial && initial.ambienteAlocado && !initial.ambienteAprovado && (
+          <Field label="Ambiente definido pela coordenação">
+            <p className="text-sm text-slate-600 mb-2">A coordenação reservou: <strong>{initial.ambienteAlocado}</strong></p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteAprovado ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+                <input
+                  type="radio"
+                  className="hidden"
+                  checked={ambienteAprovado}
+                  onChange={() => { setAmbienteAprovado(true); setQuerOutroAmbiente(false); setAmbienteSugestao(""); }}
+                />
+                Concordo com esse ambiente
+              </label>
+              <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${querOutroAmbiente ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+                <input
+                  type="radio"
+                  className="hidden"
+                  checked={querOutroAmbiente}
+                  onChange={() => { setQuerOutroAmbiente(true); setAmbienteAprovado(false); }}
+                />
+                Prefiro outro
+              </label>
+            </div>
+            {querOutroAmbiente && (
+              <select value={ambienteSugestao} onChange={(e) => setAmbienteSugestao(e.target.value)} className="input mt-2">
+                <option value="">Selecione o ambiente que prefere</option>
+                {(ambientes || [])
+                  .filter((a) => a.nome !== initial.ambienteAlocado)
+                  .slice()
+                  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+                  .map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
+              </select>
+            )}
+          </Field>
+        )}
         <Field label="Materiais que o aluno deve levar">
           <p className="text-xs text-slate-400 mb-2">Esses itens aparecerão no comprovante de inscrição do aluno.</p>
           <div className="space-y-2">
@@ -857,7 +895,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
         {tab === "oficinas" && (
           <div>
-            <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} flash={flash} />
+            <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} ambientes={ambientes} flash={flash} />
             <div className="flex gap-2 mb-4 flex-wrap">
               {["todas", "pendente", "aprovada", "ajustes"].map((f) => (
                 <button key={f} onClick={() => setFiltro(f)} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${filtro === f ? "bg-indigo-950 text-white border-indigo-950" : "border-stone-300 text-slate-500"}`}>
@@ -909,10 +947,12 @@ function Stat({ icon: Icon, label, value }) {
   );
 }
 
-function AdminCriarOficina({ saveOficinas, oficinas, flash }) {
+function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   const [professor, setProfessor] = useState("");
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [vagas, setVagas] = useState("");
+  const [ambienteAlocado, setAmbienteAlocado] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const valid = professor && nome.trim() && descricao.trim();
@@ -920,6 +960,7 @@ function AdminCriarOficina({ saveOficinas, oficinas, flash }) {
   async function criar() {
     setSalvando(true);
     try {
+      const vagasNum = Number(vagas) || 0;
       const ok = await saveOficinas([
         ...oficinas,
         {
@@ -929,24 +970,28 @@ function AdminCriarOficina({ saveOficinas, oficinas, flash }) {
           descricao: descricao.trim(),
           modoEquipe: "sozinho",
           colegas: "",
-          qtdAlunos: 0,
+          qtdAlunos: vagasNum,
           materiais: "[]",
           ambienteTipo: "sala",
           ambienteDetalhe: "",
           status: "pendente",
-          vagas: null,
-          ambienteAlocado: "",
+          vagas: vagasNum || null,
+          ambienteAlocado,
           feedback: "",
           tituloAprovado: false,
           descricaoAprovado: false,
+          ambienteAprovado: !ambienteAlocado,
+          ambienteSugestao: "",
           createdAt: Date.now(),
         },
       ]);
       if (ok) {
-        flash(`Oficina cadastrada para ${professor}. Quando ele/ela logar, vai confirmar título/descrição e completar os detalhes (vagas, ambiente, materiais).`);
+        flash(`Oficina cadastrada para ${professor}. Quando ele/ela logar, vai confirmar título, descrição${ambienteAlocado ? " e ambiente" : ""}, e completar os detalhes.`);
         setProfessor("");
         setNome("");
         setDescricao("");
+        setVagas("");
+        setAmbienteAlocado("");
       }
     } finally {
       setSalvando(false);
@@ -967,8 +1012,19 @@ function AdminCriarOficina({ saveOficinas, oficinas, flash }) {
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
         </Field>
         <Field label="Descrição">
-          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} className="input resize-none" />
+          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} className="input" />
         </Field>
+        <div className="flex gap-3">
+          <Field label="Vagas">
+            <input type="number" min="0" value={vagas} onChange={(e) => setVagas(e.target.value)} placeholder="Ex.: 30" className="input" />
+          </Field>
+          <Field label="Ambiente">
+            <select value={ambienteAlocado} onChange={(e) => setAmbienteAlocado(e.target.value)} className="input">
+              <option value="">Selecione…</option>
+              {(ambientes || []).slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
+            </select>
+          </Field>
+        </div>
       </div>
       <button
         disabled={!valid || salvando}
@@ -993,10 +1049,21 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
     : (alocacaoCount[ambienteAlocado] || 0);
   const conflito = ambienteAlocado && outrasNesseAmbiente > 0;
   const editValido = nome.trim() && descricao.trim();
-  const aguardandoConfirmacao = !oficina.tituloAprovado || !oficina.descricaoAprovado;
+  const ambientePendente = oficina.ambienteAlocado && !oficina.ambienteAprovado;
+  const aguardandoConfirmacao = !oficina.tituloAprovado || !oficina.descricaoAprovado || ambientePendente;
 
   function salvarTexto(changes) {
-    onUpdate(oficina.id, { nome: nome.trim(), descricao: descricao.trim(), ...changes });
+    const mudouAmbiente = "ambienteAlocado" in changes && changes.ambienteAlocado !== oficina.ambienteAlocado;
+    onUpdate(oficina.id, {
+      nome: nome.trim(),
+      descricao: descricao.trim(),
+      ...changes,
+      ...(changes.status === "aprovada"
+        ? { ambienteAprovado: true }
+        : mudouAmbiente
+        ? { ambienteAprovado: false, ambienteSugestao: "" }
+        : {}),
+    });
   }
 
   return (
@@ -1011,13 +1078,14 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
           <input value={nome} onChange={(e) => setNome(e.target.value)} className="input font-serif font-bold" />
         </Field>
         <Field label="Descrição">
-          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} className="input resize-none" />
+          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} className="input" />
         </Field>
       </div>
 
       {aguardandoConfirmacao && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mt-2 flex items-center gap-1 w-fit">
-          <AlertTriangle className="w-3.5 h-3.5" /> Aguardando o professor confirmar: {[!oficina.tituloAprovado && "título", !oficina.descricaoAprovado && "descrição"].filter(Boolean).join(" e ")}.
+          <AlertTriangle className="w-3.5 h-3.5" /> Aguardando o professor confirmar: {[!oficina.tituloAprovado && "título", !oficina.descricaoAprovado && "descrição", ambientePendente && "ambiente"].filter(Boolean).join(", ")}.
+          {oficina.ambienteSugestao && <> O professor prefere: <strong>{oficina.ambienteSugestao}</strong>.</>}
         </p>
       )}
 
@@ -1053,7 +1121,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título/descrição" : ""} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
         <button disabled={!editValido} onClick={() => salvarTexto({ status: "ajustes", feedback })} className="text-xs font-semibold bg-rose-100 hover:bg-rose-200 disabled:opacity-40 text-rose-700 px-3 py-1.5 rounded-lg">Solicitar ajustes</button>
         <button disabled={!editValido} onClick={() => salvarTexto({ vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>

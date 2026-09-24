@@ -33,6 +33,8 @@ create table if not exists oficinas (
   feedback          text,
   titulo_aprovado     boolean not null default true,  -- false quando a coordenação cadastra em nome do professor
   descricao_aprovado  boolean not null default true,
+  ambiente_aprovado   boolean not null default true,  -- false quando a coordenação já reservou o ambiente em nome do professor
+  ambiente_sugestao   text,   -- preenchido pelo professor quando ele prefere outro ambiente
   created_at        timestamptz not null default now()
 );
 
