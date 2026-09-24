@@ -18,13 +18,30 @@ function horarioPorSerie(serie) {
   return "";
 }
 
-function descricaoProfessores(oficina) {
-  if (!oficina) return "";
+// Cada nome fica em um <span> sem quebra de linha própria, pra "João
+// Leonardo" nunca quebrar no meio — só entre um professor e outro.
+function ProfessoresLine({ oficina }) {
+  if (!oficina) return null;
   const nomes = oficina.modoEquipe === "parceria" && oficina.colegas
     ? [oficina.professor, ...oficina.colegas.split(",").map((c) => c.trim()).filter(Boolean)]
     : [oficina.professor];
-  if (nomes.length === 1) return `com o professor ${nomes[0]}`;
-  return `com os professores ${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+
+  if (nomes.length === 1) {
+    return <>com o professor <span className="whitespace-nowrap">{nomes[0]}</span></>;
+  }
+
+  return (
+    <>
+      com os professores{" "}
+      {nomes.slice(0, -1).map((n, i) => (
+        <span key={n}>
+          <span className="whitespace-nowrap">{n}</span>
+          {i < nomes.length - 2 ? ", " : " "}
+        </span>
+      ))}
+      e <span className="whitespace-nowrap">{nomes[nomes.length - 1]}</span>
+    </>
+  );
 }
 
 const DEFAULT_AMBIENTES = [
@@ -1028,7 +1045,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
             <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">LiterArena · Edição 2026</p>
             <p className="text-xs uppercase tracking-widest text-indigo-300 mb-1">Comprovante de inscrição</p>
             <h3 className="font-serif text-2xl font-bold mb-1">{oficina?.nome || "Oficina removida"}</h3>
-            <p className="text-indigo-300 text-sm mb-4">{descricaoProfessores(oficina)}</p>
+            <p className="text-indigo-300 text-sm mb-4"><ProfessoresLine oficina={oficina} /></p>
             <div className="border-t border-dashed border-indigo-700 pt-4 text-sm text-left grid grid-cols-2 gap-y-1">
               <span className="text-indigo-400">Aluno</span><span>{minhaInscricao.nomeAluno}</span>
               <span className="text-indigo-400">Matrícula</span><span>{minhaInscricao.matricula}</span>
