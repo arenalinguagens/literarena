@@ -11,9 +11,10 @@ import {
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// Bloqueio temporário do login do professor (usado durante a reconstrução
-// manual dos dados). Deixe true para reativar a mensagem de manutenção.
-const PROFESSOR_LOGIN_BLOQUEADO = false;
+// Bloqueio temporário do login do professor, enquanto a coordenação
+// recadastra manualmente as oficinas perdidas. Só trocar para false
+// quando a coordenação avisar que pode liberar de novo.
+const PROFESSOR_LOGIN_BLOQUEADO = true;
 
 // Lista de materiais é guardada como JSON (array de {item, quantidade})
 // dentro do mesmo campo de texto "materiais" que já existia.
