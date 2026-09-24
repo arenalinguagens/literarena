@@ -933,6 +933,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
           </div>
         )}
       </div>
+      <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
     </div>
   );
 }
@@ -1073,12 +1074,12 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
         <StatusBadge status={oficina.status} />
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-2 mt-2">
+      <div className="space-y-2 mt-2">
         <Field label="Título da oficina">
           <input value={nome} onChange={(e) => setNome(e.target.value)} className="input font-serif font-bold" />
         </Field>
         <Field label="Descrição">
-          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={4} className="input" />
+          <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} className="input" />
         </Field>
       </div>
 
