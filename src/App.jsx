@@ -945,25 +945,32 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
         {tab === "oficinas" && (
           <div>
-            <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} ambientes={ambientes} flash={flash} />
-            <div className="flex gap-1 mb-4 bg-stone-100 p-1 rounded-lg w-fit">
-              <button onClick={() => setFiltro("pendentes")} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${filtro === "pendentes" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+            <div className="flex gap-1 mb-4 bg-stone-100 p-1 rounded-lg w-fit overflow-x-auto">
+              <button onClick={() => setFiltro("pendentes")} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${filtro === "pendentes" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
                 Pendentes ({oficinasPendentes.length})
               </button>
-              <button onClick={() => setFiltro("confirmadas")} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${filtro === "confirmadas" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+              <button onClick={() => setFiltro("confirmadas")} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${filtro === "confirmadas" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
                 Confirmadas ({oficinasConfirmadas.length})
               </button>
+              <button onClick={() => setFiltro("cadastrar")} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${filtro === "cadastrar" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+                Cadastrar
+              </button>
             </div>
-            <div className="space-y-3">
-              {oficinasFiltradas.map((o) => (
-                <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} />
-              ))}
-              {oficinasFiltradas.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-10">
-                  {filtro === "pendentes" ? "Nenhuma oficina aguardando confirmação do professor." : "Nenhuma oficina confirmada ainda."}
-                </p>
-              )}
-            </div>
+
+            {filtro === "cadastrar" ? (
+              <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} ambientes={ambientes} flash={flash} />
+            ) : (
+              <div className="space-y-3">
+                {oficinasFiltradas.map((o) => (
+                  <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} />
+                ))}
+                {oficinasFiltradas.length === 0 && (
+                  <p className="text-sm text-slate-400 text-center py-10">
+                    {filtro === "pendentes" ? "Nenhuma oficina aguardando confirmação do professor." : "Nenhuma oficina confirmada ainda."}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
