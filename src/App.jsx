@@ -29,7 +29,7 @@ function parseMateriais(materiais) {
 function formatarMateriais(materiais) {
   return parseMateriais(materiais)
     .filter((m) => m.item?.trim())
-    .map((m) => (m.quantidade?.trim() ? `${m.item} (${m.quantidade})` : m.item))
+    .map((m) => (m.quantidade?.trim() ? `${m.quantidade} ${m.item}` : m.item))
     .join(", ");
 }
 
@@ -993,7 +993,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
                   </div>
                   <ul className="mt-1.5 text-sm text-slate-600 list-disc list-inside">
                     {parseMateriais(o.materiaisNecessarios).filter((m) => m.item?.trim()).map((m, i) => (
-                      <li key={i}>{m.item}{m.quantidade?.trim() ? ` — ${m.quantidade}` : ""}</li>
+                      <li key={i}>{m.quantidade?.trim() ? `${m.quantidade} ` : ""}{m.item}</li>
                     ))}
                   </ul>
                 </div>
