@@ -930,16 +930,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <Stat icon={Ticket} label="Vagas · 8º e 9º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo89 ? (o.vagas89 || 0) : 0), 0)} />
               <Stat icon={School} label="Ambientes" value={ambientes.length} />
             </div>
-            <h3 className="font-serif font-bold text-indigo-950 mb-2">Últimas oficinas cadastradas</h3>
-            <div className="space-y-2">
-              {[...oficinas].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5).map((o) => (
-                <div key={o.id} className="flex items-center justify-between border border-stone-200 rounded-lg px-4 py-2.5 bg-white">
-                  <span className="text-sm font-medium">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></span>
-                  <StatusBadge status={o.status} />
-                </div>
-              ))}
-              {oficinas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina cadastrada ainda.</p>}
-            </div>
           </div>
         )}
 
