@@ -530,6 +530,7 @@ function ProfessorLogin({ onBack, onLogin }) {
 
 function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, inscricoes, flash }) {
   const [editing, setEditing] = useState(null);
+  const [aba, setAba] = useState("minha");
 
   if (PROFESSOR_LOGIN_BLOQUEADO) {
     return (
@@ -562,7 +563,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
           <button onClick={() => setProfessorNome("")} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"><LogOut className="w-3.5 h-3.5" /> trocar</button>
         </div>
 
-        {!editing && pendentesDeVoce.length > 0 && (
+        {!editing && aba === "minha" && pendentesDeVoce.length > 0 && (
           <div className="bg-rose-50 border border-rose-300 rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
             <p className="text-sm text-rose-800 font-semibold">
@@ -571,7 +572,16 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
           </div>
         )}
 
-        <h3 className="font-serif font-bold text-indigo-950 mb-4">Minhas Oficinas ({minhas.length})</h3>
+        {!editing && (
+          <div className="flex gap-1 mb-4 bg-stone-100 p-1 rounded-lg w-fit overflow-x-auto">
+            <button onClick={() => setAba("minha")} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${aba === "minha" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+              Minha oficina
+            </button>
+            <button onClick={() => setAba("cadastrar")} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${aba === "cadastrar" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+              Cadastrar nova oficina
+            </button>
+          </div>
+        )}
 
         {editing ? (
           <OficinaForm
@@ -588,9 +598,39 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
               return ok;
             }}
           />
+        ) : aba === "cadastrar" ? (
+          <OficinaForm
+            professorNome={professorNome}
+            initial={null}
+            ambientes={ambientes}
+            onCancel={() => setAba("minha")}
+            onSubmit={async (data) => {
+              const nova = {
+                id: uid(),
+                professor: professorNome,
+                status: "pendente",
+                vagas: null,
+                vagas67: null,
+                vagas89: null,
+                grupo67: true,
+                grupo89: true,
+                ambienteAlocado: "",
+                feedback: "",
+                createdAt: Date.now(),
+                ...data,
+              };
+              const ok = await saveOficinas([...oficinas, nova]);
+              if (ok) {
+                flash("Oficina cadastrada! Em breve a coordenação vai revisar e aprovar.");
+                setAba("minha");
+              }
+              return ok;
+            }}
+          />
         ) : (
           <div className="space-y-3">
-            {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina cadastrada pela coordenação ainda.</p>}
+            <h3 className="font-serif font-bold text-indigo-950 mb-1">Minhas Oficinas ({minhas.length})</h3>
+            {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina cadastrada ainda. Use "Cadastrar nova oficina" ao lado para começar.</p>}
             {minhas.map((o) => {
               const precisaAcao = precisaConfirmacaoDoProfessor(o);
               const editavel = o.status === "pendente" || o.status === "ajustes";
