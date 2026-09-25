@@ -30,6 +30,7 @@ const TABLES = {
       descricao: o.descricao,
       qtd_alunos: o.qtdAlunos,
       materiais: o.materiais ?? null,
+      materiais_necessarios: o.materiaisNecessarios ?? null,
       ambiente_tipo: o.ambienteTipo,
       ambiente_detalhe: o.ambienteDetalhe ?? null,
       status: o.status,
@@ -53,6 +54,7 @@ const TABLES = {
       delete row.descricao_aprovado;
       delete row.ambiente_aprovado;
       delete row.ambiente_sugestao;
+      delete row.materiais_necessarios;
       return row;
     },
     fromRow: (r) => ({
@@ -64,6 +66,7 @@ const TABLES = {
       descricao: r.descricao,
       qtdAlunos: r.qtd_alunos,
       materiais: r.materiais ?? "",
+      materiaisNecessarios: r.materiais_necessarios ?? "",
       ambienteTipo: r.ambiente_tipo,
       ambienteDetalhe: r.ambiente_detalhe ?? "",
       status: r.status,

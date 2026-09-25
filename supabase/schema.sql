@@ -24,7 +24,8 @@ create table if not exists oficinas (
   colegas           text,   -- nomes dos professores parceiros, quando modo_equipe = 'parceria'
   descricao         text not null,
   qtd_alunos        int4 not null,
-  materiais         text,
+  materiais         text,   -- materiais que o ALUNO deve levar (aparece no comprovante)
+  materiais_necessarios text,  -- materiais que o PROFESSOR precisa que a coordenação providencie
   ambiente_tipo     text not null default 'sala' check (ambiente_tipo in ('sala', 'outro')),
   ambiente_detalhe  text,
   status            text not null default 'pendente' check (status in ('pendente', 'aprovada', 'ajustes')),

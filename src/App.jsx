@@ -563,7 +563,8 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {o.ambienteTipo === "sala" ? "Sala convencional" : `Outro espaço: ${o.ambienteDetalhe || "a definir"}`}</span>
                 </div>
                 {o.modoEquipe === "parceria" && o.colegas && <p className="text-xs text-slate-400 mt-2">Em parceria com: {o.colegas}</p>}
-                {formatarMateriais(o.materiais) && <p className="text-xs text-slate-400 mt-2">Materiais: {formatarMateriais(o.materiais)}</p>}
+                {formatarMateriais(o.materiais) && <p className="text-xs text-slate-400 mt-2">Aluno leva: {formatarMateriais(o.materiais)}</p>}
+                {formatarMateriais(o.materiaisNecessarios) && <p className="text-xs text-slate-400 mt-1">Materiais necessários: {formatarMateriais(o.materiaisNecessarios)}</p>}
                 {o.status === "ajustes" && o.feedback && (
                   <div className="mt-2 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg px-3 py-2">
                     <strong>Retorno da coordenação:</strong> {o.feedback}
@@ -587,6 +588,47 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
   );
 }
 
+function MateriaisEditor({ lista, setLista }) {
+  function add() {
+    setLista((m) => [...m, { item: "", quantidade: "" }]);
+  }
+  function update(i, campo, valor) {
+    setLista((m) => m.map((mat, idx) => (idx === i ? { ...mat, [campo]: valor } : mat)));
+  }
+  function remove(i) {
+    setLista((m) => m.filter((_, idx) => idx !== i));
+  }
+  return (
+    <div className="space-y-2">
+      {lista.map((mat, i) => (
+        <div key={i} className="flex gap-2">
+          <input
+            value={mat.item}
+            onChange={(e) => update(i, "item", e.target.value)}
+            placeholder="Ex.: cola bastão"
+            className="input flex-1"
+          />
+          <input
+            value={mat.quantidade}
+            onChange={(e) => update(i, "quantidade", e.target.value)}
+            placeholder="Qtd."
+            className="input shrink-0"
+            style={{ width: "6rem" }}
+          />
+          <button type="button" onClick={() => remove(i)} className="text-rose-400 hover:text-rose-600 shrink-0"><X className="w-4 h-4" /></button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+      >
+        <Plus className="w-3.5 h-3.5" /> Adicionar material
+      </button>
+    </div>
+  );
+}
+
 function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) {
   const [nome, setNome] = useState(initial?.nome || "");
   const [modoEquipe, setModoEquipe] = useState(initial?.modoEquipe || "sozinho");
@@ -596,6 +638,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
   const [qtdAlunos, setQtdAlunos] = useState(initial?.qtdAlunos || "");
   const [descricao, setDescricao] = useState(initial?.descricao || "");
   const [materiais, setMateriais] = useState(parseMateriais(initial?.materiais));
+  const [materiaisNecessarios, setMateriaisNecessarios] = useState(parseMateriais(initial?.materiaisNecessarios));
   const [ambienteTipo, setAmbienteTipo] = useState(initial?.ambienteTipo || "sala");
   const [ambienteDetalhe, setAmbienteDetalhe] = useState(initial?.ambienteDetalhe || "");
   const [tituloAprovado, setTituloAprovado] = useState(initial ? !!initial.tituloAprovado : true);
@@ -609,7 +652,8 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
     setSalvando(true);
     try {
       const materiaisLimpos = materiais.filter((m) => m.item.trim());
-      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: JSON.stringify(materiaisLimpos), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim(), tituloAprovado, descricaoAprovado, ambienteAprovado, ambienteSugestao: ambienteAprovado ? "" : ambienteSugestao });
+      const materiaisNecessariosLimpos = materiaisNecessarios.filter((m) => m.item.trim());
+      await onSubmit({ nome: nome.trim(), modoEquipe, colegas: modoEquipe === "parceria" ? colegas.join(", ") : "", qtdAlunos: Number(qtdAlunos), descricao: descricao.trim(), materiais: JSON.stringify(materiaisLimpos), materiaisNecessarios: JSON.stringify(materiaisNecessariosLimpos), ambienteTipo, ambienteDetalhe: ambienteDetalhe.trim(), tituloAprovado, descricaoAprovado, ambienteAprovado, ambienteSugestao: ambienteAprovado ? "" : ambienteSugestao });
     } finally {
       setSalvando(false);
     }
@@ -617,16 +661,6 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
 
   function toggleColega(p) {
     setColegas((atual) => (atual.includes(p) ? atual.filter((c) => c !== p) : [...atual, p]));
-  }
-
-  function addMaterial() {
-    setMateriais((m) => [...m, { item: "", quantidade: "" }]);
-  }
-  function updateMaterial(i, campo, valor) {
-    setMateriais((m) => m.map((mat, idx) => (idx === i ? { ...mat, [campo]: valor } : mat)));
-  }
-  function removeMaterial(i) {
-    setMateriais((m) => m.filter((_, idx) => idx !== i));
   }
 
   const opcoesColegas = PROFESSORES_LISTA.filter((p) => p !== professorNome);
@@ -726,34 +760,12 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
           </Field>
         )}
         <Field label="Materiais que o aluno deve levar">
-          <p className="text-xs text-slate-400 mb-2">Esses itens aparecerão no comprovante de inscrição do aluno.</p>
-          <div className="space-y-2">
-            {materiais.map((mat, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={mat.item}
-                  onChange={(e) => updateMaterial(i, "item", e.target.value)}
-                  placeholder="Ex.: cola bastão"
-                  className="input flex-1"
-                />
-                <input
-                  value={mat.quantidade}
-                  onChange={(e) => updateMaterial(i, "quantidade", e.target.value)}
-                  placeholder="Qtd."
-                  className="input shrink-0"
-                  style={{ width: "6rem" }}
-                />
-                <button type="button" onClick={() => removeMaterial(i)} className="text-rose-400 hover:text-rose-600 shrink-0"><X className="w-4 h-4" /></button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addMaterial}
-              className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" /> Adicionar material
-            </button>
-          </div>
+          <p className="text-xs text-slate-400 mb-2">Esses itens serão informados aos alunos, portanto, eles deverão trazer para oficina.</p>
+          <MateriaisEditor lista={materiais} setLista={setMateriais} />
+        </Field>
+        <Field label="Materiais necessários">
+          <p className="text-xs text-slate-400 mb-2">Itens que você precisa que a coordenação providencie para a oficina.</p>
+          <MateriaisEditor lista={materiaisNecessarios} setLista={setMateriaisNecessarios} />
         </Field>
         {!(initial && initial.ambienteAlocado && !initial.ambienteAprovado) && (
           <Field label="Ambiente necessário">
@@ -936,10 +948,40 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               })}
               {oficinas.filter((o) => o.status === "aprovada").length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
             </div>
+
+            <div className="flex items-center justify-between mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
+              <button onClick={() => window.print()} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+            </div>
+            <div id="relatorio-materiais-imprimivel" className="space-y-2">
+              {oficinas.filter((o) => parseMateriais(o.materiaisNecessarios).some((m) => m.item?.trim())).map((o) => (
+                <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-indigo-950">
+                    {o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span> <StatusBadge status={o.status} />
+                  </div>
+                  <ul className="mt-1.5 text-sm text-slate-600 list-disc list-inside">
+                    {parseMateriais(o.materiaisNecessarios).filter((m) => m.item?.trim()).map((m, i) => (
+                      <li key={i}>{m.item}{m.quantidade?.trim() ? ` — ${m.quantidade}` : ""}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {oficinas.filter((o) => parseMateriais(o.materiaisNecessarios).some((m) => m.item?.trim())).length === 0 && (
+                <p className="text-sm text-slate-400">Nenhum professor informou materiais necessários ainda.</p>
+              )}
+            </div>
           </div>
         )}
       </div>
-      <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
+      <style>{`
+        .input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; }
+        .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }
+        @media print {
+          body * { visibility: hidden; }
+          #relatorio-materiais-imprimivel, #relatorio-materiais-imprimivel * { visibility: visible; }
+          #relatorio-materiais-imprimivel { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -979,6 +1021,7 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
           colegas: "",
           qtdAlunos: vagasNum,
           materiais: "[]",
+          materiaisNecessarios: "[]",
           ambienteTipo: "sala",
           ambienteDetalhe: "",
           status: "pendente",
@@ -1101,7 +1144,8 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
         <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas} inscritos</span>
         <span>{oficina.ambienteTipo === "sala" ? "Sala convencional" : `Outro: ${oficina.ambienteDetalhe || "—"}`}</span>
-        {formatarMateriais(oficina.materiais) && <span>Materiais: {formatarMateriais(oficina.materiais)}</span>}
+        {formatarMateriais(oficina.materiais) && <span>Aluno leva: {formatarMateriais(oficina.materiais)}</span>}
+        {formatarMateriais(oficina.materiaisNecessarios) && <span>Materiais necessários: {formatarMateriais(oficina.materiaisNecessarios)}</span>}
         {oficina.modoEquipe === "parceria" && oficina.colegas && <span>Em parceria com: {oficina.colegas}</span>}
       </div>
 
