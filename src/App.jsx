@@ -543,8 +543,13 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
             {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina cadastrada pela coordenação ainda.</p>}
             {minhas.map((o) => {
               const precisaAcao = !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado);
+              const editavel = o.status === "pendente" || o.status === "ajustes";
               return (
-              <div key={o.id} className={`border rounded-xl p-4 bg-white ${precisaAcao ? "border-rose-300" : "border-stone-200"}`}>
+              <div
+                key={o.id}
+                onClick={editavel ? () => setEditing(o) : undefined}
+                className={`border rounded-xl p-4 bg-white ${precisaAcao ? "border-rose-300" : "border-stone-200"} ${editavel ? "cursor-pointer hover:border-indigo-300" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-serif font-bold text-indigo-950">{o.nome}</h3>
@@ -668,7 +673,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
 
   return (
     <div className="bg-white border border-stone-200 rounded-xl p-5">
-      {initial && <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4 w-fit">Editando oficina — será reenviada para aprovação</p>}
+      {initial && <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-4 w-fit">Clique em confirmar para cada informação solicitada. Se desejar, pode fazer alterações.</p>}
       <div className="space-y-4">
         <Field label="Nome da oficina">
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Slam de Poesia" className="input" />
