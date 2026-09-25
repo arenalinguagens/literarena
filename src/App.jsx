@@ -479,7 +479,6 @@ function ProfessorLogin({ onBack, onLogin }) {
 }
 
 function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, flash }) {
-  const [tab, setTab] = useState("nova");
   const [editing, setEditing] = useState(null);
 
   if (PROFESSOR_LOGIN_BLOQUEADO) {
@@ -500,6 +499,9 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
   }
 
   const minhas = oficinas.filter((o) => o.professor.toLowerCase() === professorNome.toLowerCase());
+  const pendentesDeVoce = minhas.filter(
+    (o) => !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado)
+  );
 
   return (
     <div>
@@ -510,46 +512,51 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
           <button onClick={() => setProfessorNome("")} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"><LogOut className="w-3.5 h-3.5" /> trocar</button>
         </div>
 
-        <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-lg w-fit">
-          <button onClick={() => { setTab("nova"); setEditing(null); }} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${tab === "nova" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>Nova Oficina</button>
-          <button onClick={() => setTab("minhas")} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${tab === "minhas" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>Minhas Oficinas ({minhas.length})</button>
-        </div>
+        {!editing && pendentesDeVoce.length > 0 && (
+          <div className="bg-rose-50 border border-rose-300 rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+            <p className="text-sm text-rose-800 font-semibold">
+              {pendentesDeVoce.length === 1 ? "Você tem 1 oficina" : `Você tem ${pendentesDeVoce.length} oficinas`} aguardando sua confirmação.
+            </p>
+          </div>
+        )}
 
-        {tab === "nova" && (
+        <h3 className="font-serif font-bold text-indigo-950 mb-4">Minhas Oficinas ({minhas.length})</h3>
+
+        {editing ? (
           <OficinaForm
             professorNome={professorNome}
             initial={editing}
             ambientes={ambientes}
-            onCancel={() => { setEditing(null); setTab("minhas"); }}
+            onCancel={() => setEditing(null)}
             onSubmit={async (data) => {
-              let ok;
-              if (editing) {
-                ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
-                if (ok) flash("Oficina atualizada e reenviada para aprovação.");
-              } else {
-                ok = await saveOficinas([...oficinas, { id: uid(), professor: professorNome, status: "pendente", vagas: data.qtdAlunos, ambienteAlocado: "", createdAt: Date.now(), ...data }]);
-                if (ok) flash("Oficina cadastrada! Aguarde a aprovação da coordenação.");
-              }
+              const ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
               if (ok) {
+                flash("Oficina atualizada e reenviada para aprovação.");
                 setEditing(null);
-                setTab("minhas");
               }
               return ok;
             }}
           />
-        )}
-
-        {tab === "minhas" && (
+        ) : (
           <div className="space-y-3">
-            {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Você ainda não cadastrou nenhuma oficina.</p>}
-            {minhas.map((o) => (
-              <div key={o.id} className="border border-stone-200 rounded-xl p-4 bg-white">
+            {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina cadastrada pela coordenação ainda.</p>}
+            {minhas.map((o) => {
+              const precisaAcao = !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado);
+              return (
+              <div key={o.id} className={`border rounded-xl p-4 bg-white ${precisaAcao ? "border-rose-300" : "border-stone-200"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-serif font-bold text-indigo-950">{o.nome}</h3>
                     <p className="text-sm text-slate-500 mt-0.5">{o.descricao}</p>
                   </div>
-                  <StatusBadge status={o.status} />
+                  {precisaAcao ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border bg-rose-100 text-rose-800 border-rose-300 shrink-0 whitespace-nowrap">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Falta você confirmar
+                    </span>
+                  ) : (
+                    <StatusBadge status={o.status} />
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
                   <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> ~{o.qtdAlunos} alunos</span>
@@ -564,14 +571,15 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                 )}
                 {(o.status === "pendente" || o.status === "ajustes") && (
                   <button
-                    onClick={() => { setEditing(o); setTab("nova"); }}
+                    onClick={() => setEditing(o)}
                     className="mt-3 text-xs font-semibold text-indigo-700 hover:text-indigo-900"
                   >
                     Editar oficina
                   </button>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -747,24 +755,26 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
             </button>
           </div>
         </Field>
-        <Field label="Ambiente necessário">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteTipo === "sala" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
-              <input type="radio" className="hidden" checked={ambienteTipo === "sala"} onChange={() => setAmbienteTipo("sala")} />
-              Sala de aula convencional
-            </label>
-            <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteTipo === "outro" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
-              <input type="radio" className="hidden" checked={ambienteTipo === "outro"} onChange={() => setAmbienteTipo("outro")} />
-              Outro espaço da escola
-            </label>
-          </div>
-          {ambienteTipo === "outro" && (
-            <select value={ambienteDetalhe} onChange={(e) => setAmbienteDetalhe(e.target.value)} className="input mt-2">
-              <option value="">Selecione o espaço</option>
-              {(ambientes || []).slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
-            </select>
-          )}
-        </Field>
+        {!(initial && initial.ambienteAlocado && !initial.ambienteAprovado) && (
+          <Field label="Ambiente necessário">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteTipo === "sala" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+                <input type="radio" className="hidden" checked={ambienteTipo === "sala"} onChange={() => setAmbienteTipo("sala")} />
+                Sala de aula convencional
+              </label>
+              <label className={`flex-1 flex items-center gap-2 border rounded-lg px-3 py-2.5 cursor-pointer text-sm ${ambienteTipo === "outro" ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-semibold" : "border-stone-300 text-slate-500"}`}>
+                <input type="radio" className="hidden" checked={ambienteTipo === "outro"} onChange={() => setAmbienteTipo("outro")} />
+                Outro espaço da escola
+              </label>
+            </div>
+            {ambienteTipo === "outro" && (
+              <select value={ambienteDetalhe} onChange={(e) => setAmbienteDetalhe(e.target.value)} className="input mt-2">
+                <option value="">Selecione o espaço</option>
+                {(ambientes || []).slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
+              </select>
+            )}
+          </Field>
+        )}
       </div>
       <div className="flex gap-2 mt-5">
         {initial && <button onClick={onCancel} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-500 border border-stone-300">Cancelar</button>}
