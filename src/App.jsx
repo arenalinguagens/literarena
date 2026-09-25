@@ -951,6 +951,16 @@ function AdminLogin({ onBack, onUnlock }) {
 function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("pendentes");
+  // Com mais de mil inscritos, não faz sentido montar todos os comprovantes
+  // na tela (nem ficaria visível, nem seria rápido) — eles só são gerados,
+  // fora da tela, na hora de imprimir, e um série por vez.
+  const [serieImprimindo, setSerieImprimindo] = useState(null);
+  useEffect(() => {
+    if (serieImprimindo) {
+      imprimirSecao("comprovantes-imprimivel");
+      setSerieImprimindo(null);
+    }
+  }, [serieImprimindo]);
 
   const oficinasPendentes = oficinas.filter(precisaConfirmacaoDoProfessor);
   const oficinasConfirmadas = oficinas.filter((o) => !precisaConfirmacaoDoProfessor(o));
@@ -1070,19 +1080,31 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               )}
             </div>
 
-            <div className="flex items-center justify-between mt-8 mb-2">
+            <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Comprovantes de inscrição</h3>
-              <button onClick={() => imprimirSecao("comprovantes-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir todos</button>
+              <p className="text-xs text-slate-500 mt-0.5">Com {inscricoes.length} inscritos, os comprovantes não ficam na tela — escolha uma série para gerar e imprimir só os dela.</p>
             </div>
-            <div id="comprovantes-imprimivel" data-print-secao className="space-y-4">
-              {inscricoes.map((i) => (
+            <div className="flex flex-wrap gap-2">
+              {SERIES.map((s) => {
+                const qtd = inscricoes.filter((i) => i.serie === s).length;
+                return (
+                  <button
+                    key={s}
+                    disabled={qtd === 0 || !!serieImprimindo}
+                    onClick={() => setSerieImprimindo(s)}
+                    className="text-xs font-semibold bg-indigo-950 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> {serieImprimindo === s ? "Gerando…" : `${s} (${qtd})`}
+                  </button>
+                );
+              })}
+            </div>
+            <div id="comprovantes-imprimivel" data-print-secao className="comprovantes-fora-da-tela space-y-4">
+              {serieImprimindo && inscricoes.filter((i) => i.serie === serieImprimindo).map((i) => (
                 <div key={i.matricula} className="comprovante-print-item">
                   <ComprovanteCard inscricao={i} oficina={oficinas.find((o) => o.id === i.oficinaId)} />
                 </div>
               ))}
-              {inscricoes.length === 0 && (
-                <p className="text-sm text-slate-400">Nenhum aluno se inscreveu ainda.</p>
-              )}
             </div>
           </div>
         )}
@@ -1090,10 +1112,11 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
       <style>{`
         .input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; }
         .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }
+        .comprovantes-fora-da-tela { position: absolute; left: -99999px; top: 0; }
         @media print {
           body * { visibility: hidden; }
           [data-print-ativo], [data-print-ativo] * { visibility: visible; }
-          [data-print-ativo] { position: absolute; left: 0; top: 0; width: 100%; }
+          [data-print-ativo] { position: absolute !important; left: 0 !important; top: 0 !important; width: 100%; }
           .comprovante-print-item { page-break-after: always; }
         }
       `}</style>
