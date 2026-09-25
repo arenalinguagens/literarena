@@ -597,7 +597,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
   );
 }
 
-function MateriaisEditor({ lista, setLista }) {
+function MateriaisEditor({ lista, setLista, placeholderItem = "Ex.: tesoura" }) {
   function add() {
     setLista((m) => [...m, { item: "", quantidade: "" }]);
   }
@@ -614,7 +614,7 @@ function MateriaisEditor({ lista, setLista }) {
           <input
             value={mat.item}
             onChange={(e) => update(i, "item", e.target.value)}
-            placeholder="Ex.: cola bastão"
+            placeholder={placeholderItem}
             className="input flex-1"
           />
           <input
@@ -774,7 +774,7 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
         </Field>
         <Field label="Materiais necessários">
           <p className="text-xs text-slate-400 mb-2">Itens que você precisa que a coordenação providencie para a oficina.</p>
-          <MateriaisEditor lista={materiaisNecessarios} setLista={setMateriaisNecessarios} />
+          <MateriaisEditor lista={materiaisNecessarios} setLista={setMateriaisNecessarios} placeholderItem="Ex.: caixa de som" />
         </Field>
         {!(initial && initial.ambienteAlocado && !initial.ambienteAprovado) && (
           <Field label="Ambiente necessário">
