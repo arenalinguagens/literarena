@@ -16,6 +16,17 @@ function colunaAusente(error) {
   );
 }
 
+// Descobre QUAL coluna especificamente está faltando, a partir da mensagem
+// de erro (formatos diferentes entre PostgREST e Postgres cru).
+function extrairNomeColuna(error) {
+  const msg = error?.message || "";
+  let m = msg.match(/'([a-zA-Z_]+)'\s+column/i);
+  if (m) return m[1];
+  m = msg.match(/column\s+"?([a-zA-Z_.]+)"?\s+(of|does not exist)/i);
+  if (m) return m[1].split(".").pop();
+  return null;
+}
+
 const TABLES = {
   oficinas: {
     table: "oficinas",
@@ -43,20 +54,6 @@ const TABLES = {
       ambiente_sugestao: o.ambienteSugestao ?? null,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
-    // Usado só se o banco ainda não tiver alguma coluna adicionada depois
-    // do schema original (migração não rodada): salva a oficina mesmo
-    // assim, sem esses campos, em vez de falhar a gravação inteira.
-    toRowSemColunasNovas: (o) => {
-      const row = TABLES.oficinas.toRow(o);
-      delete row.modo_equipe;
-      delete row.colegas;
-      delete row.titulo_aprovado;
-      delete row.descricao_aprovado;
-      delete row.ambiente_aprovado;
-      delete row.ambiente_sugestao;
-      delete row.materiais_necessarios;
-      return row;
-    },
     fromRow: (r) => ({
       id: r.id,
       professor: r.professor,
@@ -99,14 +96,6 @@ const TABLES = {
       oficina_id: i.oficinaId,
       timestamp: new Date(i.timestamp ?? Date.now()).toISOString(),
     }),
-    // Usado só se o banco ainda não tiver as colunas serie/turma (migração
-    // não rodada): salva a inscrição mesmo assim, sem esses dois campos.
-    toRowSemColunasNovas: (i) => {
-      const row = TABLES.inscricoes.toRow(i);
-      delete row.serie;
-      delete row.turma;
-      return row;
-    },
     fromRow: (r) => ({
       matricula: r.matricula,
       nomeAluno: r.nome_aluno,
@@ -159,24 +148,26 @@ export const storage = {
     }
 
     if (rows.length > 0) {
-      const { error: upsertError } = await supabase
-        .from(cfg.table)
-        .upsert(rows, { onConflict: cfg.idField });
-
-      if (upsertError) {
-        // Coluna nova ainda não existe no banco (migração não rodada) —
-        // tenta salvar de novo sem ela, pra nunca perder a oficina inteira
-        // por causa de um campo extra.
-        if (cfg.toRowSemColunasNovas && colunaAusente(upsertError)) {
-          const rowsSemColunasNovas = incoming.map(cfg.toRowSemColunasNovas);
-          const { error: fallbackError } = await supabase
-            .from(cfg.table)
-            .upsert(rowsSemColunasNovas, { onConflict: cfg.idField });
-          if (fallbackError) throw fallbackError;
-        } else {
-          throw upsertError;
+      // Tenta salvar; se faltar alguma coluna no banco (migração não
+      // rodada ainda), descobre QUAL coluna especificamente e tenta de
+      // novo sem só ela — repete até funcionar ou até esgotar as colunas
+      // "novas" conhecidas. Isso evita que uma única migração pendente
+      // (ex.: materiais_necessarios) derrube TAMBÉM a gravação de outras
+      // colunas que já existem no banco (ex.: titulo_aprovado).
+      let rowsParaSalvar = rows;
+      let ultimoErro = null;
+      for (let tentativa = 0; tentativa < 8; tentativa++) {
+        const { error } = await supabase.from(cfg.table).upsert(rowsParaSalvar, { onConflict: cfg.idField });
+        if (!error) {
+          ultimoErro = null;
+          break;
         }
+        ultimoErro = error;
+        const coluna = colunaAusente(error) ? extrairNomeColuna(error) : null;
+        if (!coluna) break;
+        rowsParaSalvar = rowsParaSalvar.map(({ [coluna]: _omitido, ...resto }) => resto);
       }
+      if (ultimoErro) throw ultimoErro;
     }
 
     return { value };

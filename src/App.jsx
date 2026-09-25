@@ -1131,7 +1131,13 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
     <div className="border border-stone-200 rounded-xl p-4 bg-white">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs text-slate-400">{oficina.professor}</p>
-        <StatusBadge status={oficina.status} />
+        {oficina.status === "pendente" && !aguardandoConfirmacao ? (
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border bg-blue-100 text-blue-800 border-blue-300 shrink-0 whitespace-nowrap">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Confirmada pelo professor
+          </span>
+        ) : (
+          <StatusBadge status={oficina.status} />
+        )}
       </div>
 
       <div className="space-y-2 mt-2">
