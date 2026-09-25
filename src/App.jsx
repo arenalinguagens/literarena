@@ -532,7 +532,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
             onSubmit={async (data) => {
               const ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
               if (ok) {
-                flash("Oficina atualizada e reenviada para aprovação.");
+                flash("Obrigado pelo envio! Em breve informaremos sobre as próximas etapas e iniciaremos a divulgação.");
                 setEditing(null);
               }
               return ok;
@@ -558,6 +558,10 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                   {precisaAcao ? (
                     <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border bg-rose-100 text-rose-800 border-rose-300 shrink-0 whitespace-nowrap">
                       <AlertTriangle className="w-3.5 h-3.5" /> Falta você confirmar
+                    </span>
+                  ) : o.status === "pendente" ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border bg-blue-100 text-blue-800 border-blue-300 shrink-0 whitespace-nowrap">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Oficina confirmada
                     </span>
                   ) : (
                     <StatusBadge status={o.status} />
