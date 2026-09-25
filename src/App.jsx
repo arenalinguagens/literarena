@@ -54,6 +54,13 @@ function grupoPorSerie(serie) {
 function precisaConfirmacaoDoProfessor(o) {
   return !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado);
 }
+// Permite ter várias seções imprimíveis na mesma tela: cada botão de
+// impressão ativa só a sua seção antes de chamar window.print().
+function imprimirSecao(id) {
+  document.querySelectorAll("[data-print-secao]").forEach((el) => el.removeAttribute("data-print-ativo"));
+  document.getElementById(id)?.setAttribute("data-print-ativo", "true");
+  window.print();
+}
 
 // Cada nome fica em um <span> sem quebra de linha própria, pra "João
 // Leonardo" nunca quebrar no meio — só entre um professor e outro.
@@ -78,6 +85,32 @@ function ProfessoresLine({ oficina }) {
       ))}
       e <span className="whitespace-nowrap">{nomes[nomes.length - 1]}</span>
     </>
+  );
+}
+
+function ComprovanteCard({ inscricao, oficina, id }) {
+  return (
+    <div id={id} className="bg-indigo-950 text-stone-50 rounded-2xl p-6 text-center relative overflow-hidden">
+      <Ticket className="w-8 h-8 mx-auto text-amber-400 mb-2" />
+      <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">LiterArena · Edição 2026</p>
+      <p className="text-xs uppercase tracking-widest text-indigo-300 mb-1">Comprovante de inscrição</p>
+      <h3 className="font-serif text-2xl font-bold mb-1">{oficina?.nome || "Oficina removida"}</h3>
+      <p className="text-indigo-300 text-sm mb-4"><ProfessoresLine oficina={oficina} /></p>
+      <div className="border-t border-dashed border-indigo-700 pt-4 text-sm text-left grid grid-cols-2 gap-y-1">
+        <span className="text-indigo-400">Aluno</span><span>{inscricao.nomeAluno}</span>
+        <span className="text-indigo-400">Matrícula</span><span>{inscricao.matricula}</span>
+        <span className="text-indigo-400">Série/turma</span><span>{inscricao.serie} {inscricao.turma}</span>
+        <span className="text-indigo-400">Data</span><span>23 de outubro, manhã</span>
+        <span className="text-indigo-400">Horário</span><span>{horarioPorSerie(inscricao.serie)}</span>
+        {oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
+      </div>
+      {formatarMateriais(oficina?.materiais) && (
+        <div className="border-t border-dashed border-indigo-700 pt-3 mt-3 text-sm text-left">
+          <span className="text-indigo-400 text-xs uppercase tracking-wide">Materiais que o aluno deve levar</span>
+          <p className="mt-1">{formatarMateriais(oficina.materiais)}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -233,6 +266,7 @@ export default function App() {
           oficinas={oficinas}
           saveOficinas={saveOficinas}
           ambientes={ambientes}
+          inscricoes={inscricoes}
           flash={flash}
         />
       )}
@@ -494,7 +528,7 @@ function ProfessorLogin({ onBack, onLogin }) {
   );
 }
 
-function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, flash }) {
+function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, saveOficinas, ambientes, inscricoes, flash }) {
   const [editing, setEditing] = useState(null);
 
   if (PROFESSOR_LOGIN_BLOQUEADO) {
@@ -560,6 +594,8 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
             {minhas.map((o) => {
               const precisaAcao = precisaConfirmacaoDoProfessor(o);
               const editavel = o.status === "pendente" || o.status === "ajustes";
+              const inscritos67 = inscricoes.filter((i) => i.oficinaId === o.id && grupoPorSerie(i.serie) === "67");
+              const inscritos89 = inscricoes.filter((i) => i.oficinaId === o.id && grupoPorSerie(i.serie) === "89");
               return (
               <div
                 key={o.id}
@@ -590,6 +626,37 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
                 {o.modoEquipe === "parceria" && o.colegas && <p className="text-xs text-slate-400 mt-2">Em parceria com: {o.colegas}</p>}
                 {formatarMateriais(o.materiais) && <p className="text-xs text-slate-400 mt-2">Aluno leva: {formatarMateriais(o.materiais)}</p>}
                 {formatarMateriais(o.materiaisNecessarios) && <p className="text-xs text-slate-400 mt-1">Materiais necessários: {formatarMateriais(o.materiaisNecessarios)}</p>}
+                {o.status === "aprovada" && (
+                  <div className="mt-3 pt-3 border-t border-stone-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Inscritos por sessão</p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {o.grupo67 && (
+                        <div>
+                          <p className="text-xs font-medium text-slate-600 mb-1">6º e 7º ano ({inscritos67.length}/{o.vagas67 ?? "—"})</p>
+                          {inscritos67.length === 0 ? (
+                            <p className="text-xs text-slate-400">Nenhum inscrito ainda.</p>
+                          ) : (
+                            <ul className="text-xs text-slate-600 space-y-0.5">
+                              {inscritos67.map((i) => <li key={i.matricula}>{i.nomeAluno} · {i.serie} {i.turma}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      {o.grupo89 && (
+                        <div>
+                          <p className="text-xs font-medium text-slate-600 mb-1">8º e 9º ano ({inscritos89.length}/{o.vagas89 ?? "—"})</p>
+                          {inscritos89.length === 0 ? (
+                            <p className="text-xs text-slate-400">Nenhum inscrito ainda.</p>
+                          ) : (
+                            <ul className="text-xs text-slate-600 space-y-0.5">
+                              {inscritos89.map((i) => <li key={i.matricula}>{i.nomeAluno} · {i.serie} {i.turma}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {o.status === "ajustes" && o.feedback && (
                   <div className="mt-2 text-xs bg-rose-50 text-rose-700 border border-rose-200 rounded-lg px-3 py-2">
                     <strong>Retorno da coordenação:</strong> {o.feedback}
@@ -983,9 +1050,9 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
             <div className="flex items-center justify-between mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
-              <button onClick={() => window.print()} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+              <button onClick={() => imprimirSecao("relatorio-materiais-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
             </div>
-            <div id="relatorio-materiais-imprimivel" className="space-y-2">
+            <div id="relatorio-materiais-imprimivel" data-print-secao className="space-y-2">
               {oficinas.filter((o) => parseMateriais(o.materiaisNecessarios).some((m) => m.item?.trim())).map((o) => (
                 <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
                   <div className="flex items-center gap-2 text-sm font-semibold text-indigo-950">
@@ -1002,6 +1069,21 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
                 <p className="text-sm text-slate-400">Nenhum professor informou materiais necessários ainda.</p>
               )}
             </div>
+
+            <div className="flex items-center justify-between mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Comprovantes de inscrição</h3>
+              <button onClick={() => imprimirSecao("comprovantes-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir todos</button>
+            </div>
+            <div id="comprovantes-imprimivel" data-print-secao className="space-y-4">
+              {inscricoes.map((i) => (
+                <div key={i.matricula} className="comprovante-print-item">
+                  <ComprovanteCard inscricao={i} oficina={oficinas.find((o) => o.id === i.oficinaId)} />
+                </div>
+              ))}
+              {inscricoes.length === 0 && (
+                <p className="text-sm text-slate-400">Nenhum aluno se inscreveu ainda.</p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1010,8 +1092,9 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
         .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }
         @media print {
           body * { visibility: hidden; }
-          #relatorio-materiais-imprimivel, #relatorio-materiais-imprimivel * { visibility: visible; }
-          #relatorio-materiais-imprimivel { position: absolute; left: 0; top: 0; width: 100%; }
+          [data-print-ativo], [data-print-ativo] * { visibility: visible; }
+          [data-print-ativo] { position: absolute; left: 0; top: 0; width: 100%; }
+          .comprovante-print-item { page-break-after: always; }
         }
       `}</style>
     </div>
@@ -1402,27 +1485,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
       <div>
         <BackBar onBack={onBack} title="Minha Inscrição" />
         <div className="max-w-md mx-auto px-6 py-10">
-          <div id="comprovante-imprimivel" className="bg-indigo-950 text-stone-50 rounded-2xl p-6 text-center relative overflow-hidden">
-            <Ticket className="w-8 h-8 mx-auto text-amber-400 mb-2" />
-            <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">LiterArena · Edição 2026</p>
-            <p className="text-xs uppercase tracking-widest text-indigo-300 mb-1">Comprovante de inscrição</p>
-            <h3 className="font-serif text-2xl font-bold mb-1">{oficina?.nome || "Oficina removida"}</h3>
-            <p className="text-indigo-300 text-sm mb-4"><ProfessoresLine oficina={oficina} /></p>
-            <div className="border-t border-dashed border-indigo-700 pt-4 text-sm text-left grid grid-cols-2 gap-y-1">
-              <span className="text-indigo-400">Aluno</span><span>{minhaInscricao.nomeAluno}</span>
-              <span className="text-indigo-400">Matrícula</span><span>{minhaInscricao.matricula}</span>
-              <span className="text-indigo-400">Série/turma</span><span>{minhaInscricao.serie} {minhaInscricao.turma}</span>
-              <span className="text-indigo-400">Data</span><span>23 de outubro, manhã</span>
-              <span className="text-indigo-400">Horário</span><span>{horarioPorSerie(minhaInscricao.serie)}</span>
-              {oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
-            </div>
-            {formatarMateriais(oficina?.materiais) && (
-              <div className="border-t border-dashed border-indigo-700 pt-3 mt-3 text-sm text-left">
-                <span className="text-indigo-400 text-xs uppercase tracking-wide">Materiais que o aluno deve levar</span>
-                <p className="mt-1">{formatarMateriais(oficina.materiais)}</p>
-              </div>
-            )}
-          </div>
+          <ComprovanteCard id="comprovante-imprimivel" inscricao={minhaInscricao} oficina={oficina} />
           <button
             onClick={() => window.print()}
             className="w-full mt-4 flex items-center justify-center gap-2 bg-indigo-950 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
@@ -1437,9 +1500,9 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
               setProcessando(false);
               if (ok) flash("Inscrição cancelada. Você pode escolher outra oficina.");
             }}
-            className="w-full mt-4 text-sm font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-40"
+            className="w-full mt-4 flex items-center justify-center gap-2 bg-rose-600 text-white font-semibold py-2.5 rounded-lg hover:bg-rose-700 disabled:opacity-40"
           >
-            {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
+            <X className="w-4 h-4" /> {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
           </button>
           <style>{`
             @media print {
