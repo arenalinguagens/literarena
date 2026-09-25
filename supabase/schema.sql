@@ -29,7 +29,11 @@ create table if not exists oficinas (
   ambiente_tipo     text not null default 'sala' check (ambiente_tipo in ('sala', 'outro')),
   ambiente_detalhe  text,
   status            text not null default 'pendente' check (status in ('pendente', 'aprovada', 'ajustes')),
-  vagas             int4,
+  vagas             int4,   -- legado (antes da divisão por sessão); mantido por compatibilidade
+  vagas_67          int4,   -- vagas da sessão do 6º/7º ano (3º horário)
+  vagas_89          int4,   -- vagas da sessão do 8º/9º ano (5º horário)
+  grupo_67          boolean not null default true,  -- oficina oferecida na sessão do 6º/7º ano
+  grupo_89          boolean not null default true,  -- oficina oferecida na sessão do 8º/9º ano
   ambiente_alocado  text,   -- guarda o NOME do ambiente escolhido (não o id — ver src/App.jsx)
   feedback          text,
   titulo_aprovado     boolean not null default true,  -- false quando a coordenação cadastra em nome do professor

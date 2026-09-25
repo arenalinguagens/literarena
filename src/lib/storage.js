@@ -46,6 +46,10 @@ const TABLES = {
       ambiente_detalhe: o.ambienteDetalhe ?? null,
       status: o.status,
       vagas: o.vagas ?? null,
+      vagas_67: o.vagas67 ?? null,
+      vagas_89: o.vagas89 ?? null,
+      grupo_67: o.grupo67 ?? true,
+      grupo_89: o.grupo89 ?? true,
       ambiente_alocado: o.ambienteAlocado ?? null,
       feedback: o.feedback ?? null,
       titulo_aprovado: o.tituloAprovado ?? true,
@@ -68,6 +72,13 @@ const TABLES = {
       ambienteDetalhe: r.ambiente_detalhe ?? "",
       status: r.status,
       vagas: r.vagas,
+      // Se as colunas por grupo ainda não existirem/estiverem vazias
+      // (oficina antiga, de antes da divisão por sessão), cai para o
+      // valor único antigo — melhor que mostrar 0 vagas por engano.
+      vagas67: r.vagas_67 ?? r.vagas ?? null,
+      vagas89: r.vagas_89 ?? r.vagas ?? null,
+      grupo67: r.grupo_67 ?? true,
+      grupo89: r.grupo_89 ?? true,
       ambienteAlocado: r.ambiente_alocado ?? "",
       feedback: r.feedback ?? "",
       // Se a coluna ainda não existir no banco, trata como já aprovado

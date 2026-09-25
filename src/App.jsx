@@ -39,6 +39,20 @@ function horarioPorSerie(serie) {
   if (serie === "8º ano" || serie === "9º ano") return "5º horário";
   return "";
 }
+// As duas sessões do dia (6º/7º de manhã cedo, 8º/9º na sequência) têm
+// vagas independentes: uma oficina pode lotar numa sessão e ainda ter
+// vagas na outra, então cada grupo precisa da sua própria contagem.
+function grupoPorSerie(serie) {
+  if (serie === "6º ano" || serie === "7º ano") return "67";
+  if (serie === "8º ano" || serie === "9º ano") return "89";
+  return null;
+}
+// Verdadeiro enquanto a coordenação estiver esperando o PROFESSOR
+// confirmar título, descrição e/ou ambiente (quando algum foi
+// preenchido/definido por ela em nome dele).
+function precisaConfirmacaoDoProfessor(o) {
+  return !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado);
+}
 
 // Cada nome fica em um <span> sem quebra de linha própria, pra "João
 // Leonardo" nunca quebrar no meio — só entre um professor e outro.
@@ -178,7 +192,8 @@ export default function App() {
   const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes, ambientes);
   const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes);
 
-  const vagasOcupadas = (oficinaId) => inscricoes.filter((i) => i.oficinaId === oficinaId).length;
+  const vagasOcupadas = (oficinaId, grupo) =>
+    inscricoes.filter((i) => i.oficinaId === oficinaId && (!grupo || grupoPorSerie(i.serie) === grupo)).length;
 
   if (loading) {
     return (
@@ -194,7 +209,7 @@ export default function App() {
     <div className="min-h-[600px] bg-stone-50 font-sans text-slate-800">
       {toast && (
         <div
-          className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 text-sm px-4 py-2.5 rounded-2xl shadow-lg border max-w-[90vw] text-center ${
+          className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 text-sm px-4 py-2.5 rounded-2xl shadow-lg border max-w-[90vw] text-center pointer-events-none ${
             toast.isError
               ? "bg-rose-600 text-white border-rose-800 font-semibold"
               : "bg-indigo-950 text-amber-200 border-indigo-800"
@@ -542,7 +557,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
           <div className="space-y-3">
             {minhas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina cadastrada pela coordenação ainda.</p>}
             {minhas.map((o) => {
-              const precisaAcao = !o.tituloAprovado || !o.descricaoAprovado || (o.ambienteAlocado && !o.ambienteAprovado);
+              const precisaAcao = precisaConfirmacaoDoProfessor(o);
               const editavel = o.status === "pendente" || o.status === "ajustes";
               return (
               <div
@@ -867,14 +882,21 @@ function AdminLogin({ onBack, onUnlock }) {
 
 function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
-  const [filtro, setFiltro] = useState("todas");
+  const [filtro, setFiltro] = useState("pendentes");
 
-  const oficinasFiltradas = filtro === "todas" ? oficinas : oficinas.filter((o) => o.status === filtro);
+  const oficinasPendentes = oficinas.filter(precisaConfirmacaoDoProfessor);
+  const oficinasConfirmadas = oficinas.filter((o) => !precisaConfirmacaoDoProfessor(o));
+  const oficinasFiltradas = filtro === "pendentes" ? oficinasPendentes : oficinasConfirmadas;
 
-  const alocacaoCount = {};
+  // Conflito de sala só existe dentro da MESMA sessão (6º/7º e 8º/9º
+  // acontecem em horários diferentes, então a mesma sala serve as duas
+  // sem problema) — por isso a contagem é separada por grupo.
+  const alocacaoCount67 = {};
+  const alocacaoCount89 = {};
   oficinas.forEach((o) => {
     if (o.status === "aprovada" && o.ambienteAlocado) {
-      alocacaoCount[o.ambienteAlocado] = (alocacaoCount[o.ambienteAlocado] || 0) + 1;
+      if (o.grupo67) alocacaoCount67[o.ambienteAlocado] = (alocacaoCount67[o.ambienteAlocado] || 0) + 1;
+      if (o.grupo89) alocacaoCount89[o.ambienteAlocado] = (alocacaoCount89[o.ambienteAlocado] || 0) + 1;
     }
   });
 
@@ -900,11 +922,12 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
         {tab === "dashboard" && (
           <div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               <Stat icon={BookOpen} label="Oficinas" value={oficinas.length} />
               <Stat icon={GraduationCap} label="Professores" value={new Set(oficinas.map((o) => o.professor.toLowerCase())).size} />
               <Stat icon={Users} label="Alunos inscritos" value={inscricoes.length} />
-              <Stat icon={Ticket} label="Vagas oferecidas" value={oficinas.filter((o) => o.status === "aprovada").reduce((soma, o) => soma + (o.vagas || 0), 0)} />
+              <Stat icon={Ticket} label="Vagas · 6º e 7º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo67 ? (o.vagas67 || 0) : 0), 0)} />
+              <Stat icon={Ticket} label="Vagas · 8º e 9º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo89 ? (o.vagas89 || 0) : 0), 0)} />
               <Stat icon={School} label="Ambientes" value={ambientes.length} />
             </div>
             <h3 className="font-serif font-bold text-indigo-950 mb-2">Últimas oficinas cadastradas</h3>
@@ -923,18 +946,23 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
         {tab === "oficinas" && (
           <div>
             <AdminCriarOficina saveOficinas={saveOficinas} oficinas={oficinas} ambientes={ambientes} flash={flash} />
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {["todas", "pendente", "aprovada", "ajustes"].map((f) => (
-                <button key={f} onClick={() => setFiltro(f)} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${filtro === f ? "bg-indigo-950 text-white border-indigo-950" : "border-stone-300 text-slate-500"}`}>
-                  {f === "todas" ? "Todas" : STATUS[f].label}
-                </button>
-              ))}
+            <div className="flex gap-1 mb-4 bg-stone-100 p-1 rounded-lg w-fit">
+              <button onClick={() => setFiltro("pendentes")} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${filtro === "pendentes" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+                Pendentes ({oficinasPendentes.length})
+              </button>
+              <button onClick={() => setFiltro("confirmadas")} className={`px-4 py-1.5 rounded-md text-sm font-semibold ${filtro === "confirmadas" ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>
+                Confirmadas ({oficinasConfirmadas.length})
+              </button>
             </div>
             <div className="space-y-3">
               {oficinasFiltradas.map((o) => (
-                <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas={vagasOcupadas(o.id)} alocacaoCount={alocacaoCount} onUpdate={updateOficina} onRemove={removerOficina} />
+                <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} />
               ))}
-              {oficinasFiltradas.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina nesse status.</p>}
+              {oficinasFiltradas.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-10">
+                  {filtro === "pendentes" ? "Nenhuma oficina aguardando confirmação do professor." : "Nenhuma oficina confirmada ainda."}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -945,16 +973,13 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
           <div className="space-y-4">
             <h3 className="font-serif font-bold text-indigo-950">Relatório de inscrições por oficina</h3>
             <div className="space-y-2">
-              {oficinas.filter((o) => o.status === "aprovada").map((o) => {
-                const ocupadas = vagasOcupadas(o.id);
-                const pct = o.vagas ? Math.min(100, Math.round((ocupadas / o.vagas) * 100)) : 0;
-                return (
-                  <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
-                    <div className="flex justify-between text-sm font-semibold mb-1"><span>{o.nome}</span><span>{ocupadas}/{o.vagas}</span></div>
-                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
-                  </div>
-                );
-              })}
+              {oficinas.filter((o) => o.status === "aprovada").map((o) => (
+                <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white space-y-2">
+                  <div className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></div>
+                  {o.grupo67 && <BarraVagas label="6º e 7º ano" ocupadas={vagasOcupadas(o.id, "67")} vagas={o.vagas67} />}
+                  {o.grupo89 && <BarraVagas label="8º e 9º ano" ocupadas={vagasOcupadas(o.id, "89")} vagas={o.vagas89} />}
+                </div>
+              ))}
               {oficinas.filter((o) => o.status === "aprovada").length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
             </div>
 
@@ -1005,6 +1030,16 @@ function Stat({ icon: Icon, label, value }) {
   );
 }
 
+function BarraVagas({ label, ocupadas, vagas }) {
+  const pct = vagas ? Math.min(100, Math.round((ocupadas / vagas) * 100)) : 0;
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-slate-500 mb-1"><span>{label}</span><span>{ocupadas}/{vagas ?? "—"}</span></div>
+      <div className="h-2 bg-stone-100 rounded-full overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
+    </div>
+  );
+}
+
 function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   const [professor, setProfessor] = useState("");
   const [nome, setNome] = useState("");
@@ -1035,6 +1070,10 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
           ambienteDetalhe: "",
           status: "pendente",
           vagas: vagasNum || null,
+          vagas67: vagasNum || null,
+          vagas89: vagasNum || null,
+          grupo67: true,
+          grupo89: true,
           ambienteAlocado,
           feedback: "",
           tituloAprovado: false,
@@ -1097,21 +1136,33 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   );
 }
 
-function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate, onRemove }) {
+function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoCount67, alocacaoCount89, onUpdate, onRemove }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
-  const [vagas, setVagas] = useState(oficina.vagas);
+  const [grupo67, setGrupo67] = useState(oficina.grupo67);
+  const [grupo89, setGrupo89] = useState(oficina.grupo89);
+  const [vagas67, setVagas67] = useState(oficina.vagas67);
+  const [vagas89, setVagas89] = useState(oficina.vagas89);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
 
-  const outrasNesseAmbiente = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada"
-    ? (alocacaoCount[ambienteAlocado] || 0) - 1
-    : (alocacaoCount[ambienteAlocado] || 0);
+  const mesmoAmbienteAtual = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada";
+  const outrasNesseAmbiente67 = mesmoAmbienteAtual && oficina.grupo67
+    ? (alocacaoCount67[ambienteAlocado] || 0) - 1
+    : (alocacaoCount67[ambienteAlocado] || 0);
+  const outrasNesseAmbiente89 = mesmoAmbienteAtual && oficina.grupo89
+    ? (alocacaoCount89[ambienteAlocado] || 0) - 1
+    : (alocacaoCount89[ambienteAlocado] || 0);
   // "Sala de aula convencional" não é um espaço único (a escola tem várias
-  // salas comuns), então duas oficinas usando essa opção não é conflito.
-  const conflito = ambienteAlocado && ambienteAlocado !== "Sala de aula convencional" && outrasNesseAmbiente > 0;
+  // salas comuns) — nunca é conflito. E como as sessões do 6º/7º e do
+  // 8º/9º ano acontecem em horários diferentes, só é conflito de verdade
+  // quando outra oficina usa a mesma sala NA MESMA sessão.
+  const ehSalaEspecifica = ambienteAlocado && ambienteAlocado !== "Sala de aula convencional";
+  const conflito67 = ehSalaEspecifica && grupo67 && outrasNesseAmbiente67 > 0;
+  const conflito89 = ehSalaEspecifica && grupo89 && outrasNesseAmbiente89 > 0;
+  const conflito = conflito67 || conflito89;
   const editValido = nome.trim() && descricao.trim();
   const ambientePendente = oficina.ambienteAlocado && !oficina.ambienteAprovado;
-  const aguardandoConfirmacao = !oficina.tituloAprovado || !oficina.descricaoAprovado || ambientePendente;
+  const aguardandoConfirmacao = precisaConfirmacaoDoProfessor(oficina);
 
   function salvarTexto(changes) {
     const mudouAmbiente = "ambienteAlocado" in changes && changes.ambienteAlocado !== oficina.ambienteAlocado;
@@ -1157,17 +1208,44 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
       )}
 
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
-        <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas} inscritos</span>
+        <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas67 + ocupadas89} inscritos</span>
         <span>{oficina.ambienteTipo === "sala" ? "Sala convencional" : `Outro: ${oficina.ambienteDetalhe || "—"}`}</span>
         {formatarMateriais(oficina.materiais) && <span>Aluno leva: {formatarMateriais(oficina.materiais)}</span>}
         {formatarMateriais(oficina.materiaisNecessarios) && <span>Materiais necessários: {formatarMateriais(oficina.materiaisNecessarios)}</span>}
         {oficina.modoEquipe === "parceria" && oficina.colegas && <span>Em parceria com: {oficina.colegas}</span>}
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-2 mt-3">
-        <Field label="Vagas confirmadas">
-          <input type="number" min="0" value={vagas} onChange={(e) => setVagas(Number(e.target.value))} className="input" />
-        </Field>
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Sessões e vagas (vagas independentes por sessão)</p>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <div className={`border rounded-lg p-2.5 ${grupo67 ? "border-stone-300" : "border-stone-200 opacity-60"}`}>
+            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <input type="checkbox" checked={grupo67} onChange={(e) => setGrupo67(e.target.checked)} />
+              6º e 7º ano
+            </label>
+            {grupo67 && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <input type="number" min="0" value={vagas67 ?? ""} onChange={(e) => setVagas67(Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                <span className="text-xs text-slate-500">vagas · {ocupadas67} inscritos</span>
+              </div>
+            )}
+          </div>
+          <div className={`border rounded-lg p-2.5 ${grupo89 ? "border-stone-300" : "border-stone-200 opacity-60"}`}>
+            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <input type="checkbox" checked={grupo89} onChange={(e) => setGrupo89(e.target.checked)} />
+              8º e 9º ano
+            </label>
+            {grupo89 && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <input type="number" min="0" value={vagas89 ?? ""} onChange={(e) => setVagas89(Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                <span className="text-xs text-slate-500">vagas · {ocupadas89} inscritos</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3">
         <Field label="Ambiente alocado">
           <select
             value={ambienteAlocado}
@@ -1180,15 +1258,15 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas, alocacaoCount, onUpdate
           </select>
           {conflito && (
             <p className="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> Esse espaço já foi alocado para {outrasNesseAmbiente === 1 ? "outra oficina aprovada" : `${outrasNesseAmbiente} outras oficinas aprovadas`}.
+              <AlertTriangle className="w-3.5 h-3.5" /> Esse espaço já foi alocado para outra oficina aprovada {conflito67 && conflito89 ? "nas duas sessões" : conflito67 ? "na sessão do 6º/7º ano" : "na sessão do 8º/9º ano"}.
             </p>
           )}
         </Field>
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", vagas, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
-        <button disabled={!editValido} onClick={() => salvarTexto({ vagas, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
+        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        <button disabled={!editValido} onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
       </div>
     </div>
@@ -1314,7 +1392,8 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
     );
   }
 
-  const disponiveis = oficinas.filter((o) => o.status === "aprovada");
+  const meuGrupo = grupoPorSerie(serie);
+  const disponiveis = oficinas.filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89));
 
   if (minhaInscricao) {
     const oficina = oficinas.find((o) => o.id === minhaInscricao.oficinaId);
@@ -1380,8 +1459,9 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
         <p className="text-sm text-slate-500 mb-4">Olá, <span className="font-semibold">{nomeAluno}</span> — escolha <strong>uma</strong> oficina para o dia 23 de outubro (manhã). Depois de confirmar, não será possível escolher outra sem cancelar antes.</p>
         <div className="space-y-3">
           {disponiveis.map((o) => {
-            const ocupadas = vagasOcupadas(o.id);
-            const cheia = ocupadas >= o.vagas;
+            const vagasGrupo = meuGrupo === "67" ? o.vagas67 : o.vagas89;
+            const ocupadas = vagasOcupadas(o.id, meuGrupo);
+            const cheia = ocupadas >= vagasGrupo;
             return (
               <div key={o.id} className="border border-stone-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
                 <div>
@@ -1390,7 +1470,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
                   <div className="flex gap-3 text-xs text-slate-400 mt-2">
                     <span>{o.professor}</span>
                     <span>{o.ambienteTipo === "sala" ? "Sala convencional" : o.ambienteDetalhe || "Outro espaço"}</span>
-                    <span className={cheia ? "text-rose-500 font-semibold" : ""}>{ocupadas}/{o.vagas} vagas</span>
+                    <span className={cheia ? "text-rose-500 font-semibold" : ""}>{ocupadas}/{vagasGrupo} vagas</span>
                   </div>
                 </div>
                 <button
