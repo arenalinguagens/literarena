@@ -34,6 +34,7 @@ function formatarMateriais(materiais) {
 }
 
 const SERIES = ["6º ano", "7º ano", "8º ano", "9º ano"];
+const TURMAS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 function horarioPorSerie(serie) {
   if (serie === "6º ano" || serie === "7º ano") return "3º horário";
   if (serie === "8º ano" || serie === "9º ano") return "5º horário";
@@ -1374,7 +1375,10 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
               <option value="">Série</option>
               {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input value={turma} onChange={(e) => setTurma(e.target.value)} placeholder="Turma (ex.: A)" className="input" />
+            <select value={turma} onChange={(e) => setTurma(e.target.value)} className="input">
+              <option value="">Turma</option>
+              {TURMAS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
           <button
             disabled={!matricula || !nomeAluno.trim() || !serie || !turma.trim()}
