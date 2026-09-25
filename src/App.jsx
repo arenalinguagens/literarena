@@ -1058,11 +1058,12 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               {oficinas.filter((o) => o.status === "aprovada").length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
             </div>
 
-            <div className="flex items-center justify-between mt-8 mb-2">
+            <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
-              <button onClick={() => imprimirSecao("relatorio-materiais-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+              <p className="text-xs text-slate-500 mt-0.5">Não fica na tela — clique para gerar e imprimir.</p>
             </div>
-            <div id="relatorio-materiais-imprimivel" data-print-secao className="space-y-2">
+            <button onClick={() => imprimirSecao("relatorio-materiais-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir materiais necessários</button>
+            <div id="relatorio-materiais-imprimivel" data-print-secao className="print-secao-fora-da-tela space-y-2">
               {oficinas.filter((o) => parseMateriais(o.materiaisNecessarios).some((m) => m.item?.trim())).map((o) => (
                 <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
                   <div className="flex items-center gap-2 text-sm font-semibold text-indigo-950">
@@ -1099,7 +1100,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
                 );
               })}
             </div>
-            <div id="comprovantes-imprimivel" data-print-secao className="comprovantes-fora-da-tela space-y-4">
+            <div id="comprovantes-imprimivel" data-print-secao className="print-secao-fora-da-tela space-y-4">
               {serieImprimindo && inscricoes.filter((i) => i.serie === serieImprimindo).map((i) => (
                 <div key={i.matricula} className="comprovante-print-item">
                   <ComprovanteCard inscricao={i} oficina={oficinas.find((o) => o.id === i.oficinaId)} />
@@ -1112,7 +1113,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
       <style>{`
         .input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; }
         .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }
-        .comprovantes-fora-da-tela { position: absolute; left: -99999px; top: 0; }
+        .print-secao-fora-da-tela { position: absolute; left: -99999px; top: 0; }
         @media print {
           body * { visibility: hidden; }
           [data-print-ativo], [data-print-ativo] * { visibility: visible; }
