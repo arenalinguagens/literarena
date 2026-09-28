@@ -1032,7 +1032,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
   });
 
   function updateOficina(id, changes) {
-    saveOficinas(oficinas.map((o) => (o.id === id ? { ...o, ...changes } : o)));
+    return saveOficinas(oficinas.map((o) => (o.id === id ? { ...o, ...changes } : o)));
   }
 
   function removerOficina(id) {
@@ -1083,7 +1083,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             ) : (
               <div className="space-y-3">
                 {oficinasFiltradas.map((o) => (
-                  <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} />
+                  <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} flash={flash} />
                 ))}
                 {oficinasFiltradas.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-10">
@@ -1348,7 +1348,7 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   );
 }
 
-function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoCount67, alocacaoCount89, onUpdate, onRemove }) {
+function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoCount67, alocacaoCount89, onUpdate, onRemove, flash }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
   const [grupo67, setGrupo67] = useState(oficina.grupo67);
@@ -1356,6 +1356,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
   const [vagas67, setVagas67] = useState(oficina.vagas67);
   const [vagas89, setVagas89] = useState(oficina.vagas89);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
+  const [salvando, setSalvando] = useState(null);
 
   const mesmoAmbienteAtual = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada";
   const outrasNesseAmbiente67 = mesmoAmbienteAtual && oficina.grupo67
@@ -1376,9 +1377,10 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
   const ambientePendente = oficina.ambienteAlocado && !oficina.ambienteAprovado;
   const aguardandoConfirmacao = precisaConfirmacaoDoProfessor(oficina);
 
-  function salvarTexto(changes) {
+  async function salvarTexto(changes, acao, mensagemSucesso) {
     const mudouAmbiente = "ambienteAlocado" in changes && changes.ambienteAlocado !== oficina.ambienteAlocado;
-    onUpdate(oficina.id, {
+    setSalvando(acao);
+    const ok = await onUpdate(oficina.id, {
       nome: nome.trim(),
       descricao: descricao.trim(),
       ...changes,
@@ -1388,6 +1390,8 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
         ? { ambienteAprovado: false, ambienteSugestao: "" }
         : {}),
     });
+    setSalvando(null);
+    if (ok && mensagemSucesso) flash(mensagemSucesso);
   }
 
   return (
@@ -1477,22 +1481,38 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3">
-        <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        <button
+          disabled={!editValido || aguardandoConfirmacao || !!salvando}
+          title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""}
+          onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "" }, "aprovar", "Oficina aprovada!")}
+          className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+        >
+          {salvando === "aprovar" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+          {salvando === "aprovar" ? "Aprovando…" : "Aprovar"}
+        </button>
         {aguardandoConfirmacao && (
           <button
-            disabled={!editValido}
+            disabled={!editValido || !!salvando}
             title="Aprova mesmo sem o professor ter confirmado título, descrição e/ou ambiente"
             onClick={() => {
               if (confirm("Aprovar esta oficina sem esperar a confirmação do professor?")) {
-                salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "", tituloAprovado: true, descricaoAprovado: true });
+                salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "", tituloAprovado: true, descricaoAprovado: true }, "aprovar-mesmo-assim", "Oficina aprovada!");
               }
             }}
-            className="text-xs font-semibold border border-amber-400 text-amber-700 hover:bg-amber-50 disabled:opacity-40 px-3 py-1.5 rounded-lg"
+            className="text-xs font-semibold border border-amber-400 text-amber-700 hover:bg-amber-50 disabled:opacity-40 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
           >
-            Aprovar mesmo assim
+            {salvando === "aprovar-mesmo-assim" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            {salvando === "aprovar-mesmo-assim" ? "Aprovando…" : "Aprovar mesmo assim"}
           </button>
         )}
-        <button disabled={!editValido} onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
+        <button
+          disabled={!editValido || !!salvando}
+          onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, ambienteAlocado }, "salvar", "Alterações salvas.")}
+          className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+        >
+          {salvando === "salvar" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+          {salvando === "salvar" ? "Salvando…" : "Salvar alterações"}
+        </button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
       </div>
     </div>
