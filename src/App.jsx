@@ -5,7 +5,7 @@ import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
   AlertTriangle, ArrowLeft, Plus, Trash2, GraduationCap, ShieldCheck,
-  Ticket, MapPin, LogOut, RefreshCw, X, Printer
+  Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown
 } from "lucide-react";
 
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
@@ -1099,17 +1099,11 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
         {tab === "relatorios" && (
           <div className="space-y-4">
-            <h3 className="font-serif font-bold text-indigo-950">Relatório de inscrições por oficina</h3>
-            <div className="space-y-2">
-              {oficinas.filter((o) => o.status === "aprovada").map((o) => (
-                <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white space-y-2">
-                  <div className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></div>
-                  {o.grupo67 && <BarraVagas label="6º e 7º ano" ocupadas={vagasOcupadas(o.id, "67")} vagas={o.vagas67} />}
-                  {o.grupo89 && <BarraVagas label="8º e 9º ano" ocupadas={vagasOcupadas(o.id, "89")} vagas={o.vagas89} />}
-                </div>
-              ))}
-              {oficinas.filter((o) => o.status === "aprovada").length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
+            <div>
+              <h3 className="font-serif font-bold text-indigo-950">Relatório de inscrições por oficina</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Clique numa oficina para ver os alunos inscritos e excluir alguma inscrição, se precisar.</p>
             </div>
+            <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadas={vagasOcupadas} flash={flash} />
 
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
@@ -1194,6 +1188,66 @@ function BarraVagas({ label, ocupadas, vagas }) {
     <div>
       <div className="flex justify-between text-xs text-slate-500 mb-1"><span>{label}</span><span>{ocupadas}/{vagas ?? "—"}</span></div>
       <div className="h-2 bg-stone-100 rounded-full overflow-hidden"><div className="h-full bg-amber-400" style={{ width: `${pct}%` }} /></div>
+    </div>
+  );
+}
+
+function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
+  const [abertaId, setAbertaId] = useState(null);
+  const aprovadas = oficinas.filter((o) => o.status === "aprovada");
+
+  async function excluirInscricao(i) {
+    if (!confirm(`Excluir a inscrição de ${i.nomeAluno} (matrícula ${i.matricula})? A vaga volta a ficar disponível.`)) return;
+    const ok = await saveInscricoes(inscricoes.filter((x) => x.matricula !== i.matricula));
+    if (ok) flash("Inscrição excluída.");
+  }
+
+  return (
+    <div className="space-y-2">
+      {aprovadas.map((o) => {
+        const inscritos = inscricoes.filter((i) => i.oficinaId === o.id);
+        const expandida = abertaId === o.id;
+        return (
+          <div key={o.id} className="border border-stone-200 rounded-lg bg-white">
+            <button
+              type="button"
+              onClick={() => setAbertaId(expandida ? null : o.id)}
+              className="w-full text-left p-3 space-y-2"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expandida ? "rotate-180" : ""}`} />
+              </div>
+              {o.grupo67 && <BarraVagas label="6º e 7º ano" ocupadas={vagasOcupadas(o.id, "67")} vagas={o.vagas67} />}
+              {o.grupo89 && <BarraVagas label="8º e 9º ano" ocupadas={vagasOcupadas(o.id, "89")} vagas={o.vagas89} />}
+            </button>
+            {expandida && (
+              <div className="border-t border-stone-100 px-3 py-2">
+                {inscritos.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-1.5">Nenhum aluno inscrito ainda.</p>
+                ) : (
+                  <ul className="divide-y divide-stone-100">
+                    {inscritos.map((i) => (
+                      <li key={i.matricula} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                        <span>{i.nomeAluno} <span className="text-slate-400">· {i.serie} {i.turma}</span></span>
+                        <button
+                          type="button"
+                          onClick={() => excluirInscricao(i)}
+                          className="text-rose-500 hover:text-rose-700 shrink-0"
+                          title="Excluir inscrição"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {aprovadas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
     </div>
   );
 }
