@@ -721,6 +721,7 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
 }
 
 function MateriaisEditor({ lista, setLista, placeholderItem = "Ex.: tesoura" }) {
+  const [nenhumMaterial, setNenhumMaterial] = useState(lista.length === 0);
   function add() {
     setLista((m) => [...m, { item: "", quantidade: "" }]);
   }
@@ -730,33 +731,45 @@ function MateriaisEditor({ lista, setLista, placeholderItem = "Ex.: tesoura" }) 
   function remove(i) {
     setLista((m) => m.filter((_, idx) => idx !== i));
   }
+  function toggleNenhumMaterial(marcado) {
+    setNenhumMaterial(marcado);
+    if (marcado) setLista([]);
+  }
   return (
     <div className="space-y-2">
-      {lista.map((mat, i) => (
-        <div key={i} className="flex gap-2">
-          <input
-            value={mat.item}
-            onChange={(e) => update(i, "item", e.target.value)}
-            placeholder={placeholderItem}
-            className="input flex-1"
-          />
-          <input
-            value={mat.quantidade}
-            onChange={(e) => update(i, "quantidade", e.target.value)}
-            placeholder="Qtd."
-            className="input shrink-0"
-            style={{ width: "6rem" }}
-          />
-          <button type="button" onClick={() => remove(i)} className="text-rose-400 hover:text-rose-600 shrink-0"><X className="w-4 h-4" /></button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={add}
-        className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
-      >
-        <Plus className="w-3.5 h-3.5" /> Adicionar material
-      </button>
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <input type="checkbox" checked={nenhumMaterial} onChange={(e) => toggleNenhumMaterial(e.target.checked)} />
+        Não será necessário nenhum material
+      </label>
+      {!nenhumMaterial && (
+        <>
+          {lista.map((mat, i) => (
+            <div key={i} className="flex gap-2">
+              <input
+                value={mat.item}
+                onChange={(e) => update(i, "item", e.target.value)}
+                placeholder={placeholderItem}
+                className="input flex-1"
+              />
+              <input
+                value={mat.quantidade}
+                onChange={(e) => update(i, "quantidade", e.target.value)}
+                placeholder="Qtd."
+                className="input shrink-0"
+                style={{ width: "6rem" }}
+              />
+              <button type="button" onClick={() => remove(i)} className="text-rose-400 hover:text-rose-600 shrink-0"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={add}
+            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Adicionar material
+          </button>
+        </>
+      )}
     </div>
   );
 }
