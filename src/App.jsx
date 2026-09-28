@@ -1424,6 +1424,20 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
 
       <div className="flex flex-wrap gap-2 mt-3">
         <button disabled={!editValido || aguardandoConfirmacao} title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""} onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "" })} className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg">Aprovar</button>
+        {aguardandoConfirmacao && (
+          <button
+            disabled={!editValido}
+            title="Aprova mesmo sem o professor ter confirmado título, descrição e/ou ambiente"
+            onClick={() => {
+              if (confirm("Aprovar esta oficina sem esperar a confirmação do professor?")) {
+                salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "", tituloAprovado: true, descricaoAprovado: true });
+              }
+            }}
+            className="text-xs font-semibold border border-amber-400 text-amber-700 hover:bg-amber-50 disabled:opacity-40 px-3 py-1.5 rounded-lg"
+          >
+            Aprovar mesmo assim
+          </button>
+        )}
         <button disabled={!editValido} onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, ambienteAlocado })} className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg">Salvar alterações</button>
         <button onClick={() => onRemove(oficina.id)} className="text-xs font-semibold text-rose-500 px-3 py-1.5 rounded-lg ml-auto flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Remover</button>
       </div>
