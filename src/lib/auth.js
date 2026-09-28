@@ -57,3 +57,18 @@ export async function senhaValida(nome, senha) {
   if (!professor) return false;
   return (await hashSenha(senha, professor.salt)) === professor.senha_hash;
 }
+
+// Usado pela coordenação para redefinir a senha de um professor que
+// esqueceu a própria (ex.: AdminPortal). Exige a policy de update na
+// tabela "professores" — veja supabase/schema.sql.
+export async function redefinirSenhaProfessor(nome, novaSenha) {
+  const salt = gerarSalt();
+  const senha_hash = await hashSenha(novaSenha, salt);
+  const { data, error } = await supabase
+    .from("professores")
+    .update({ salt, senha_hash })
+    .eq("nome_normalizado", normalizarNome(nome))
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error("CONTA_NAO_EXISTE");
+}

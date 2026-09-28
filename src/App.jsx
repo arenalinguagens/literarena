@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { storage } from "./lib/storage";
-import { buscarProfessor, criarProfessor, senhaValida } from "./lib/auth";
+import { buscarProfessor, criarProfessor, senhaValida, redefinirSenhaProfessor } from "./lib/auth";
 import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
@@ -1061,6 +1061,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <Stat icon={Ticket} label="Vagas · 8º e 9º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo89 ? (o.vagas89 || 0) : 0), 0)} />
               <Stat icon={School} label="Ambientes" value={ambientes.length} />
             </div>
+            <RedefinirSenhaProfessor flash={flash} />
           </div>
         )}
 
@@ -1178,6 +1179,57 @@ function Stat({ icon: Icon, label, value }) {
       <Icon className="w-4 h-4 text-indigo-700 mb-2" />
       <div className="text-2xl font-bold text-indigo-950">{value}</div>
       <div className="text-xs text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function RedefinirSenhaProfessor({ flash }) {
+  const [professor, setProfessor] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const valido = professor && novaSenha.length >= 6 && novaSenha === confirmarSenha;
+
+  async function redefinir() {
+    if (novaSenha.length < 6) { flash("A senha precisa ter pelo menos 6 caracteres.", true); return; }
+    if (novaSenha !== confirmarSenha) { flash("As senhas não coincidem.", true); return; }
+    setSalvando(true);
+    try {
+      await redefinirSenhaProfessor(professor, novaSenha);
+      flash(`Senha de ${professor} redefinida. Informe a nova senha a ele/ela.`);
+      setProfessor("");
+      setNovaSenha("");
+      setConfirmarSenha("");
+    } catch (e) {
+      if (e.message === "CONTA_NAO_EXISTE") flash(`${professor} ainda não criou uma senha — não há o que redefinir.`, true);
+      else flash("Não foi possível redefinir a senha. Tente de novo.", true);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-4">
+      <h3 className="font-serif font-bold text-indigo-950 mb-1">Redefinir senha de professor</h3>
+      <p className="text-xs text-slate-500 mb-3">Use quando um professor esquecer a senha — a senha antiga deixa de funcionar.</p>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <select value={professor} onChange={(e) => setProfessor(e.target.value)} className="input sm:flex-1">
+          <option value="">Selecione o professor…</option>
+          {PROFESSORES_LISTA.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="Nova senha (mín. 6 caracteres)" className="input sm:flex-1" />
+        <input type="password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} placeholder="Confirmar senha" className="input sm:flex-1" />
+      </div>
+      <button
+        disabled={!valido || salvando}
+        onClick={redefinir}
+        className="mt-3 text-xs font-semibold bg-indigo-950 disabled:opacity-40 text-white px-4 py-2 rounded-lg flex items-center gap-1.5"
+      >
+        {salvando && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+        {salvando ? "Redefinindo…" : "Redefinir senha"}
+      </button>
+      <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
     </div>
   );
 }

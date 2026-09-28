@@ -89,7 +89,10 @@ create policy "oficinas: escrita publica" on oficinas for all using (true) with 
 create policy "inscricoes: leitura publica" on inscricoes for select using (true);
 create policy "inscricoes: escrita publica" on inscricoes for all using (true) with check (true);
 
--- professores: só leitura (pra checar login) e criação de conta nova.
--- Sem policy de update/delete: não dá pra trocar/apagar senha pelo app hoje.
+-- professores: leitura, criação de conta e atualização de senha (usada
+-- pela coordenação para redefinir a senha de quem esqueceu — ver
+-- src/lib/auth.js). Sem policy de delete: não dá pra apagar conta pelo
+-- app hoje.
 create policy "professores: leitura publica" on professores for select using (true);
 create policy "professores: criar conta" on professores for insert with check (true);
+create policy "professores: atualizar senha" on professores for update using (true) with check (true);
