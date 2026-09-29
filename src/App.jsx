@@ -590,7 +590,12 @@ function ProfessorPortal({ onBack, professorNome, setProfessorNome, oficinas, sa
             ambientes={ambientes}
             onCancel={() => setEditing(null)}
             onSubmit={async (data) => {
-              const ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...o, ...data, status: "pendente" } : o)));
+              // Busca a oficina fresca do banco antes de mesclar: evita que
+              // campos que a coordenação controla (vagas, ambiente, etc.),
+              // possivelmente alterados depois que esta tela carregou,
+              // sejam revertidos pela cópia antiga que este navegador tinha.
+              const fresca = await storage.getOne("oficinas", editing.id).catch(() => null);
+              const ok = await saveOficinas(oficinas.map((o) => (o.id === editing.id ? { ...(fresca || o), ...data, status: "pendente" } : o)));
               if (ok) {
                 flash("Obrigado pelo envio! Em breve informaremos sobre as próximas etapas e iniciaremos a divulgação.");
                 setEditing(null);
@@ -1031,8 +1036,13 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
     }
   });
 
-  function updateOficina(id, changes) {
-    return saveOficinas(oficinas.map((o) => (o.id === id ? { ...o, ...changes } : o)));
+  async function updateOficina(id, changes) {
+    // Mesma lógica do lado do professor: busca a oficina fresca do banco
+    // antes de mesclar, pra não reverter (com a cópia local antiga desta
+    // tela) campos que o professor controla — como materiais — e que ele
+    // pode ter alterado depois que a coordenação abriu esta lista.
+    const fresca = await storage.getOne("oficinas", id).catch(() => null);
+    return saveOficinas(oficinas.map((o) => (o.id === id ? { ...(fresca || o), ...changes } : o)));
   }
 
   function removerOficina(id) {

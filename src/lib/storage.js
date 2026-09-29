@@ -132,6 +132,18 @@ export const storage = {
     return { value: JSON.stringify(data.map(cfg.fromRow)) };
   },
 
+  // Busca UMA linha direto do banco (sem passar pela cópia local, que
+  // pode estar desatualizada). Usado antes de mesclar uma edição parcial
+  // em cima de campos que outra pessoa pode ter alterado nesse meio
+  // tempo — ver uso em App.jsx (edição de oficina pelo professor/coordenação).
+  async getOne(key, id) {
+    const cfg = TABLES[key];
+    if (!cfg) return null;
+    const { data, error } = await supabase.from(cfg.table).select("*").eq(cfg.idField, id).maybeSingle();
+    if (error) throw error;
+    return data ? cfg.fromRow(data) : null;
+  },
+
   // `previous` é a lista que ESTE navegador tinha antes da edição (o estado
   // local de antes do clique que gerou esse save). Só apagamos do banco uma
   // linha que estava em `previous` e não está mais em `value` — ou seja,
@@ -143,8 +155,7 @@ export const storage = {
     if (!cfg) throw new Error(`Chave de storage desconhecida: ${key}`);
 
     const incoming = JSON.parse(value);
-    const rows = incoming.map(cfg.toRow);
-    const incomingIds = new Set(rows.map((r) => r[cfg.idField]));
+    const incomingIds = new Set(incoming.map((item) => item[cfg.idField]));
 
     const toDelete = previous
       .map((p) => p[cfg.idField])
@@ -157,6 +168,21 @@ export const storage = {
         .in(cfg.idField, toDelete);
       if (deleteError) throw deleteError;
     }
+
+    // Só reenvia ao banco as linhas que realmente mudaram (ou são novas)
+    // desde a última vez que ESTE navegador leu a tabela — comparado a
+    // `previous`. Sem isso, qualquer ação que edite UMA linha (ex.: o
+    // professor confirmando uma oficina) reenviaria TODAS as outras
+    // linhas com a cópia local que este navegador já tinha, podendo
+    // sobrescrever — com dados antigos — o que outra pessoa alterou
+    // nessas outras linhas nesse meio tempo (ex.: a coordenação editando
+    // as vagas de uma oficina diferente).
+    const previousById = new Map(previous.map((p) => [p[cfg.idField], p]));
+    const alteradas = incoming.filter((item) => {
+      const antes = previousById.get(item[cfg.idField]);
+      return !antes || JSON.stringify(antes) !== JSON.stringify(item);
+    });
+    const rows = alteradas.map(cfg.toRow);
 
     if (rows.length > 0) {
       // Tenta salvar; se faltar alguma coluna no banco (migração não
