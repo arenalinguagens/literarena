@@ -1117,6 +1117,21 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadas={vagasOcupadas} flash={flash} />
 
             <div className="mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Relatório de oficinas</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Só título, professor e descrição — não fica na tela, clique para gerar e imprimir.</p>
+            </div>
+            <button onClick={() => imprimirSecao("relatorio-oficinas-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir relatório de oficinas</button>
+            <div id="relatorio-oficinas-imprimivel" data-print-secao className="print-secao-fora-da-tela space-y-2">
+              {oficinas.map((o) => (
+                <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
+                  <div className="text-sm font-semibold text-indigo-950">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></div>
+                  <p className="text-sm text-slate-600 mt-1">{o.descricao}</p>
+                </div>
+              ))}
+              {oficinas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina cadastrada ainda.</p>}
+            </div>
+
+            <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
               <p className="text-xs text-slate-500 mt-0.5">Não fica na tela — clique para gerar e imprimir.</p>
             </div>
