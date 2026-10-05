@@ -1528,6 +1528,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
   const [vagas67, setVagas67] = useState(oficina.vagas67);
   const [vagas89, setVagas89] = useState(oficina.vagas89);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
+  const [materiais, setMateriais] = useState(parseMateriais(oficina.materiais));
   const [salvando, setSalvando] = useState(null);
 
   const mesmoAmbienteAtual = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada";
@@ -1555,6 +1556,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
     const ok = await onUpdate(oficina.id, {
       nome: nome.trim(),
       descricao: descricao.trim(),
+      materiais: JSON.stringify(materiais.filter((m) => m.item.trim())),
       ...changes,
       ...(changes.status === "aprovada"
         ? { ambienteAprovado: true }
@@ -1586,6 +1588,9 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
         <Field label="Descrição">
           <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={6} className="input" />
         </Field>
+        <Field label="Material que o aluno deve levar">
+          <MateriaisEditor lista={materiais} setLista={setMateriais} />
+        </Field>
       </div>
 
       {aguardandoConfirmacao && (
@@ -1598,7 +1603,6 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-3">
         <span>~{oficina.qtdAlunos} alunos estimados · {ocupadas67 + ocupadas89} inscritos</span>
         <span>{oficina.ambienteTipo === "sala" ? "Sala convencional" : `Outro: ${oficina.ambienteDetalhe || "—"}`}</span>
-        {formatarMateriais(oficina.materiais) && <span>Aluno leva: {formatarMateriais(oficina.materiais)}</span>}
         {formatarMateriais(oficina.materiaisNecessarios) && <span>Materiais necessários: {formatarMateriais(oficina.materiaisNecessarios)}</span>}
         {oficina.modoEquipe === "parceria" && oficina.colegas && <span>Em parceria com: {oficina.colegas}</span>}
       </div>
