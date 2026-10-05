@@ -116,6 +116,28 @@ const TABLES = {
       timestamp: new Date(r.timestamp).getTime(),
     }),
   },
+  filaEspera: {
+    table: "fila_espera",
+    idField: "id",
+    toRow: (f) => ({
+      id: f.id,
+      matricula: f.matricula,
+      nome_aluno: f.nomeAluno,
+      serie: f.serie ?? null,
+      turma: f.turma ?? null,
+      oficina_id: f.oficinaId,
+      created_at: new Date(f.createdAt ?? Date.now()).toISOString(),
+    }),
+    fromRow: (r) => ({
+      id: r.id,
+      matricula: r.matricula,
+      nomeAluno: r.nome_aluno,
+      serie: r.serie ?? "",
+      turma: r.turma ?? "",
+      oficinaId: r.oficina_id,
+      createdAt: new Date(r.created_at).getTime(),
+    }),
+  },
 };
 
 export const storage = {

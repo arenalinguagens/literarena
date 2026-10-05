@@ -58,6 +58,24 @@ create table if not exists inscricoes (
 
 create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 
+-- fila_espera: registro de interesse de um aluno numa oficina já lotada
+-- (não garante vaga — é só pra coordenação saber quem avisar se abrir
+-- uma). Separada de "inscricoes" de propósito: o aluno continua sem
+-- inscrição de verdade e precisa escolher outra oficina com vaga. Um
+-- aluno pode entrar na fila de mais de uma oficina (sem chave única por
+-- matrícula). Some junto se a oficina for removida.
+create table if not exists fila_espera (
+  id          text primary key,
+  matricula   text not null,
+  nome_aluno  text not null,
+  serie       text,
+  turma       text,
+  oficina_id  text not null references oficinas(id) on delete cascade,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists fila_espera_oficina_id_idx on fila_espera (oficina_id);
+
 -- professores: login do professor (nome + senha). A senha nunca é
 -- guardada em texto puro — só salt + hash (ver src/lib/auth.js).
 create table if not exists professores (
@@ -79,6 +97,7 @@ alter table ambientes enable row level security;
 alter table oficinas enable row level security;
 alter table inscricoes enable row level security;
 alter table professores enable row level security;
+alter table fila_espera enable row level security;
 
 create policy "ambientes: leitura publica" on ambientes for select using (true);
 create policy "ambientes: escrita publica" on ambientes for all using (true) with check (true);
@@ -88,6 +107,9 @@ create policy "oficinas: escrita publica" on oficinas for all using (true) with 
 
 create policy "inscricoes: leitura publica" on inscricoes for select using (true);
 create policy "inscricoes: escrita publica" on inscricoes for all using (true) with check (true);
+
+create policy "fila_espera: leitura publica" on fila_espera for select using (true);
+create policy "fila_espera: escrita publica" on fila_espera for all using (true) with check (true);
 
 -- professores: leitura, criação de conta e atualização de senha (usada
 -- pela coordenação para redefinir a senha de quem esqueceu — ver

@@ -8,7 +8,7 @@ import {
   Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown
 } from "lucide-react";
 
-const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes" };
+const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera" };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // Bloqueio temporário do login do professor. Liberado pela coordenação
@@ -154,6 +154,7 @@ export default function App() {
   const [oficinas, setOficinas] = useState([]);
   const [ambientes, setAmbientes] = useState([]);
   const [inscricoes, setInscricoes] = useState([]);
+  const [filaEspera, setFilaEspera] = useState([]);
   const [view, setView] = useState("home");
   const [professorNome, setProfessorNome] = useState("");
   const [toast, setToast] = useState(null);
@@ -177,11 +178,12 @@ export default function App() {
     setLoading(true);
     setErr(null);
     try {
-      const [o, a, i] = await Promise.all([
-        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES),
+      const [o, a, i, f] = await Promise.all([
+        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES), safeGet(KEYS.FILA_ESPERA),
       ]);
       setOficinas(o || []);
       setInscricoes(i || []);
+      setFilaEspera(f || []);
       if (a && a.length > 0) {
         setAmbientes(a);
       } else {
@@ -225,6 +227,7 @@ export default function App() {
   const saveOficinas = (v) => persist(KEYS.OFICINAS, v, setOficinas, oficinas);
   const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes, ambientes);
   const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes);
+  const saveFilaEspera = (v) => persist(KEYS.FILA_ESPERA, v, setFilaEspera, filaEspera);
 
   const vagasOcupadas = (oficinaId, grupo) =>
     inscricoes.filter((i) => i.oficinaId === oficinaId && (!grupo || grupoPorSerie(i.serie) === grupo)).length;
@@ -284,6 +287,8 @@ export default function App() {
           saveAmbientes={saveAmbientes}
           inscricoes={inscricoes}
           saveInscricoes={saveInscricoes}
+          filaEspera={filaEspera}
+          saveFilaEspera={saveFilaEspera}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -295,6 +300,8 @@ export default function App() {
           oficinas={oficinas}
           inscricoes={inscricoes}
           saveInscricoes={saveInscricoes}
+          filaEspera={filaEspera}
+          saveFilaEspera={saveFilaEspera}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -1006,7 +1013,7 @@ function AdminLogin({ onBack, onUnlock }) {
   );
 }
 
-function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
+function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("pendentes");
   // Com mais de mil inscritos, não faz sentido montar todos os comprovantes
@@ -1117,6 +1124,12 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadas={vagasOcupadas} flash={flash} />
 
             <div className="mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Lista de espera</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Alunos que pediram pra entrar na fila de uma oficina lotada. Visível só aqui, pra coordenação.</p>
+            </div>
+            <RelatorioFilaEspera oficinas={oficinas} filaEspera={filaEspera} saveFilaEspera={saveFilaEspera} flash={flash} />
+
+            <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de oficinas</h3>
               <p className="text-xs text-slate-500 mt-0.5">Só título, professor e descrição — não fica na tela, clique para gerar e imprimir.</p>
             </div>
@@ -1151,6 +1164,29 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               ))}
               {oficinas.filter((o) => parseMateriais(o.materiaisNecessarios).some((m) => m.item?.trim())).length === 0 && (
                 <p className="text-sm text-slate-400">Nenhum professor informou materiais necessários ainda.</p>
+              )}
+            </div>
+
+            <div className="mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais que os alunos devem levar</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Não fica na tela — clique para gerar e imprimir.</p>
+            </div>
+            <button onClick={() => imprimirSecao("relatorio-materiais-aluno-imprimivel")} className="text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir materiais dos alunos</button>
+            <div id="relatorio-materiais-aluno-imprimivel" data-print-secao className="print-secao-fora-da-tela space-y-2">
+              {oficinas.filter((o) => parseMateriais(o.materiais).some((m) => m.item?.trim())).map((o) => (
+                <div key={o.id} className="border border-stone-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-indigo-950">
+                    {o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span> <StatusBadge status={o.status} />
+                  </div>
+                  <ul className="mt-1.5 text-sm text-slate-600 list-disc list-inside">
+                    {parseMateriais(o.materiais).filter((m) => m.item?.trim()).map((m, i) => (
+                      <li key={i}>{m.quantidade?.trim() ? `${m.quantidade} ` : ""}{m.item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {oficinas.filter((o) => parseMateriais(o.materiais).some((m) => m.item?.trim())).length === 0 && (
+                <p className="text-sm text-slate-400">Nenhum professor marcou material obrigatório pro aluno ainda.</p>
               )}
             </div>
 
@@ -1325,6 +1361,65 @@ function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupad
         );
       })}
       {aprovadas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
+    </div>
+  );
+}
+
+function RelatorioFilaEspera({ oficinas, filaEspera, saveFilaEspera, flash }) {
+  const [abertaId, setAbertaId] = useState(null);
+  const comFila = oficinas.filter((o) => filaEspera.some((f) => f.oficinaId === o.id));
+  const total = filaEspera.length;
+
+  async function removerDaFila(f) {
+    if (!confirm(`Remover ${f.nomeAluno} da lista de espera?`)) return;
+    const ok = await saveFilaEspera(filaEspera.filter((x) => x.id !== f.id));
+    if (ok) flash("Removido da lista de espera.");
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-slate-600">
+        <span className="text-2xl font-bold text-indigo-950">{total}</span> {total === 1 ? "aluno na lista de espera" : "alunos na lista de espera"} ao todo.
+      </p>
+      {comFila.map((o) => {
+        const fila = filaEspera.filter((f) => f.oficinaId === o.id);
+        const expandida = abertaId === o.id;
+        return (
+          <div key={o.id} className="border border-stone-200 rounded-lg bg-white">
+            <button
+              type="button"
+              onClick={() => setAbertaId(expandida ? null : o.id)}
+              className="w-full text-left p-3 flex items-center justify-between gap-2"
+            >
+              <span className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></span>
+              <span className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">{fila.length}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandida ? "rotate-180" : ""}`} />
+              </span>
+            </button>
+            {expandida && (
+              <div className="border-t border-stone-100 px-3 py-2">
+                <ul className="divide-y divide-stone-100">
+                  {fila.map((f) => (
+                    <li key={f.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                      <span>{f.nomeAluno} <span className="text-slate-400">· {f.serie} {f.turma}</span></span>
+                      <button
+                        type="button"
+                        onClick={() => removerDaFila(f)}
+                        className="text-rose-500 hover:text-rose-700 shrink-0"
+                        title="Remover da lista de espera"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {comFila.length === 0 && <p className="text-sm text-slate-400">Nenhum aluno na lista de espera ainda.</p>}
     </div>
   );
 }
@@ -1673,7 +1768,7 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 }
 
 /* ---------------- ALUNO ---------------- */
-function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
+function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, vagasOcupadas, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [serie, setSerie] = useState("");
@@ -1720,6 +1815,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
 
   const meuGrupo = grupoPorSerie(serie);
   const disponiveis = oficinas.filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89));
+  const minhasFilas = filaEspera.filter((f) => f.matricula === matricula);
 
   if (minhaInscricao) {
     const oficina = oficinas.find((o) => o.id === minhaInscricao.oficinaId);
@@ -1763,11 +1859,20 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
       <BackBar onBack={onBack} title="Escolher Oficina" />
       <div className="max-w-2xl mx-auto px-5 py-6">
         <p className="text-sm text-slate-500 mb-4">Olá, <span className="font-semibold">{nomeAluno}</span> — escolha <strong>uma</strong> oficina para o dia 23 de outubro (manhã). Depois de confirmar, não será possível escolher outra sem cancelar antes.</p>
+
+        {minhasFilas.length > 0 && (
+          <div className="bg-rose-50 border border-rose-300 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <p className="text-sm font-semibold text-rose-800">Você deve se inscrever em outra oficina! Caso uma vaga seja liberada, a coordenação entrará em contato com você.</p>
+          </div>
+        )}
+
         <div className="space-y-3">
           {disponiveis.map((o) => {
             const vagasGrupo = meuGrupo === "67" ? o.vagas67 : o.vagas89;
             const ocupadas = vagasOcupadas(o.id, meuGrupo);
             const cheia = ocupadas >= vagasGrupo;
+            const naFila = minhasFilas.some((f) => f.oficinaId === o.id);
             return (
               <div key={o.id} className="border border-stone-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
                 <div>
@@ -1779,19 +1884,35 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, vagasOcupad
                     <span className={cheia ? "text-rose-500 font-semibold" : ""}>{ocupadas}/{vagasGrupo} vagas</span>
                   </div>
                 </div>
-                <button
-                  disabled={cheia || processando}
-                  onClick={async () => {
-                    if (!confirm(`Tem certeza que quer se inscrever em "${o.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
-                    setProcessando(true);
-                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, timestamp: Date.now() }]);
-                    setProcessando(false);
-                    if (ok) flash("Inscrição confirmada!");
-                  }}
-                  className="shrink-0 text-xs font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-indigo-950 px-4 py-2 rounded-lg"
-                >
-                  {cheia ? "Lotada" : processando ? "Enviando…" : "Escolher"}
-                </button>
+                {cheia ? (
+                  <button
+                    disabled={naFila || processando}
+                    onClick={async () => {
+                      setProcessando(true);
+                      const ok = await saveFilaEspera([...filaEspera, { id: uid(), matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, createdAt: Date.now() }]);
+                      setProcessando(false);
+                      if (ok) flash("Você entrou na lista de espera.");
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 text-xs font-semibold border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 disabled:hover:bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg"
+                  >
+                    {naFila && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    {naFila ? "Você está na lista de espera" : processando ? "Enviando…" : "Entrar na lista de espera"}
+                  </button>
+                ) : (
+                  <button
+                    disabled={processando}
+                    onClick={async () => {
+                      if (!confirm(`Tem certeza que quer se inscrever em "${o.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
+                      setProcessando(true);
+                      const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, timestamp: Date.now() }]);
+                      setProcessando(false);
+                      if (ok) flash("Inscrição confirmada!");
+                    }}
+                    className="shrink-0 text-xs font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-indigo-950 px-4 py-2 rounded-lg"
+                  >
+                    {processando ? "Enviando…" : "Escolher"}
+                  </button>
+                )}
               </div>
             );
           })}
