@@ -1779,6 +1779,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
   const [turma, setTurma] = useState("");
   const [identificado, setIdentificado] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [detalheId, setDetalheId] = useState(null);
 
   const minhaInscricao = useMemo(
     () => inscricoes.find((i) => i.matricula === matricula),
@@ -1858,11 +1859,13 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
     );
   }
 
+  const detalhe = disponiveis.find((o) => o.id === detalheId) || null;
+
   return (
     <div>
       <BackBar onBack={onBack} title="Escolher Oficina" />
       <div className="max-w-2xl mx-auto px-5 py-6">
-        <p className="text-sm text-slate-500 mb-4">Olá, <span className="font-semibold">{nomeAluno}</span> — escolha <strong>uma</strong> oficina para o dia 23 de outubro (manhã). Depois de confirmar, não será possível escolher outra sem cancelar antes.</p>
+        <p className="text-sm text-slate-500 mb-4">Olá, <span className="font-semibold">{nomeAluno}</span> — toque numa oficina pra ver a descrição e escolher <strong>uma</strong> pro dia 23 de outubro (manhã). Depois de confirmar, não será possível escolher outra sem cancelar antes.</p>
 
         {minhasFilas.length > 0 && (
           <div className="bg-rose-50 border border-rose-300 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
@@ -1871,58 +1874,83 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           {disponiveis.map((o) => {
             const vagasGrupo = meuGrupo === "67" ? o.vagas67 : o.vagas89;
             const ocupadas = vagasOcupadas(o.id, meuGrupo);
             const cheia = ocupadas >= vagasGrupo;
-            const naFila = minhasFilas.some((f) => f.oficinaId === o.id);
             return (
-              <div key={o.id} className="border border-stone-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-serif font-bold text-indigo-950">{o.nome}</h3>
-                  <p className="text-sm text-slate-500">{o.descricao}</p>
-                  <div className="flex gap-3 text-xs text-slate-400 mt-2">
-                    <span>{o.professor}</span>
-                    <span>{o.ambienteTipo === "sala" ? "Sala convencional" : o.ambienteDetalhe || "Outro espaço"}</span>
-                    <span className={cheia ? "text-rose-500 font-semibold" : ""}>{ocupadas}/{vagasGrupo} vagas</span>
-                  </div>
-                </div>
-                {cheia ? (
-                  <button
-                    disabled={naFila || processando}
-                    onClick={async () => {
-                      setProcessando(true);
-                      const ok = await saveFilaEspera([...filaEspera, { id: uid(), matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, createdAt: Date.now() }]);
-                      setProcessando(false);
-                      if (ok) flash("Você entrou na lista de espera.");
-                    }}
-                    className="shrink-0 flex items-center gap-1.5 text-xs font-semibold border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 disabled:hover:bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg"
-                  >
-                    {naFila && <CheckCircle2 className="w-3.5 h-3.5" />}
-                    {naFila ? "Você está na lista de espera" : processando ? "Enviando…" : "Entrar na lista de espera"}
-                  </button>
-                ) : (
-                  <button
-                    disabled={processando}
-                    onClick={async () => {
-                      if (!confirm(`Tem certeza que quer se inscrever em "${o.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
-                      setProcessando(true);
-                      const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: o.id, timestamp: Date.now() }]);
-                      setProcessando(false);
-                      if (ok) flash("Inscrição confirmada!");
-                    }}
-                    className="shrink-0 text-xs font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-indigo-950 px-4 py-2 rounded-lg"
-                  >
-                    {processando ? "Enviando…" : "Escolher"}
-                  </button>
-                )}
-              </div>
+              <button
+                key={o.id}
+                onClick={() => setDetalheId(o.id)}
+                className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
+              >
+                <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
+                <span className="text-xs text-slate-400">{o.professor}</span>
+                <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                  {ocupadas}/{vagasGrupo} vagas
+                </span>
+              </button>
             );
           })}
-          {disponiveis.length === 0 && <p className="text-sm text-slate-400 text-center py-10">Nenhuma oficina aprovada disponível ainda. Volte mais tarde.</p>}
+          {disponiveis.length === 0 && <p className="col-span-2 text-sm text-slate-400 text-center py-10">Nenhuma oficina aprovada disponível ainda. Volte mais tarde.</p>}
         </div>
       </div>
+
+      {detalhe && (() => {
+        const vagasGrupo = meuGrupo === "67" ? detalhe.vagas67 : detalhe.vagas89;
+        const ocupadas = vagasOcupadas(detalhe.id, meuGrupo);
+        const cheia = ocupadas >= vagasGrupo;
+        const naFila = minhasFilas.some((f) => f.oficinaId === detalhe.id);
+        return (
+          <div className="fixed inset-0 bg-stone-900/45 flex items-end sm:items-center sm:justify-center z-50" onClick={() => setDetalheId(null)}>
+            <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="font-serif font-bold text-xl text-indigo-950">{detalhe.nome}</h2>
+                <button onClick={() => setDetalheId(null)} className="shrink-0 w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center">
+                  <X className="w-3.5 h-3.5 text-stone-600" />
+                </button>
+              </div>
+              <div className="flex gap-3 text-xs text-slate-400 mt-1.5">
+                <span>{detalhe.professor}</span>
+                <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>
+                <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-3 leading-relaxed">{detalhe.descricao}</p>
+
+              {cheia ? (
+                <button
+                  disabled={naFila || processando}
+                  onClick={async () => {
+                    setProcessando(true);
+                    const ok = await saveFilaEspera([...filaEspera, { id: uid(), matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, createdAt: Date.now() }]);
+                    setProcessando(false);
+                    if (ok) flash("Você entrou na lista de espera.");
+                  }}
+                  className="w-full mt-4 flex items-center justify-center gap-1.5 text-sm font-semibold border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 disabled:hover:bg-indigo-50 text-indigo-700 py-2.5 rounded-lg"
+                >
+                  {naFila && <CheckCircle2 className="w-4 h-4" />}
+                  {naFila ? "Você está na lista de espera" : processando ? "Enviando…" : "Entrar na lista de espera"}
+                </button>
+              ) : (
+                <button
+                  disabled={processando}
+                  onClick={async () => {
+                    if (!confirm(`Tem certeza que quer se inscrever em "${detalhe.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
+                    setProcessando(true);
+                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, timestamp: Date.now() }]);
+                    setProcessando(false);
+                    if (ok) flash("Inscrição confirmada!");
+                  }}
+                  className="w-full mt-4 text-sm font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 text-indigo-950 py-2.5 rounded-lg"
+                >
+                  {processando ? "Enviando…" : "Escolher"}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
