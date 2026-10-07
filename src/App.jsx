@@ -1923,7 +1923,10 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
   }
 
   const meuGrupo = grupoPorSerie(serie);
-  const disponiveis = oficinas.filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89));
+  const disponiveis = oficinas
+    .filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89))
+    .slice()
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const minhasFilas = filaEspera.filter((f) => f.matricula === matricula);
 
   if (minhaInscricao) {
