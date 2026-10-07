@@ -69,6 +69,9 @@ function imprimirSecao(id) {
 // Leonardo" nunca quebrar no meio — só entre um professor e outro.
 function ProfessoresLine({ oficina }) {
   if (!oficina) return null;
+  if (oficina.creditos) {
+    return <>com <span className="whitespace-nowrap">{oficina.creditos}</span></>;
+  }
   const nomes = oficina.modoEquipe === "parceria" && oficina.colegas
     ? [oficina.professor, ...oficina.colegas.split(",").map((c) => c.trim()).filter(Boolean)]
     : [oficina.professor];
@@ -1401,6 +1404,8 @@ function ConfiguracaoExibicao({ oficinas, saveOficinas, configuracoes, saveConfi
   const [mostrarHorario, setMostrarHorario] = useState(true);
   const [mostrarLocal, setMostrarLocal] = useState(true);
   const [mostrarMateriaisComp, setMostrarMateriaisComp] = useState(true);
+  const [ordem, setOrdem] = useState("");
+  const [creditos, setCreditos] = useState("");
   const [salvandoComprovante, setSalvandoComprovante] = useState(false);
 
   function selecionarOficina(id) {
@@ -1410,6 +1415,8 @@ function ConfiguracaoExibicao({ oficinas, saveOficinas, configuracoes, saveConfi
       setMostrarHorario(o.comprovanteMostrarHorario ?? true);
       setMostrarLocal(o.comprovanteMostrarLocal ?? true);
       setMostrarMateriaisComp(o.comprovanteMostrarMateriais ?? true);
+      setOrdem(o.ordem ?? "");
+      setCreditos(o.creditos ?? "");
     }
   }
 
@@ -1421,9 +1428,11 @@ function ConfiguracaoExibicao({ oficinas, saveOficinas, configuracoes, saveConfi
       comprovanteMostrarHorario: mostrarHorario,
       comprovanteMostrarLocal: mostrarLocal,
       comprovanteMostrarMateriais: mostrarMateriaisComp,
+      ordem: ordem === "" ? null : Number(ordem),
+      creditos: creditos.trim() || null,
     } : o)));
     setSalvandoComprovante(false);
-    if (ok) flash("Comprovante dessa oficina atualizado.");
+    if (ok) flash("Oficina atualizada.");
   }
 
   return (
@@ -1444,18 +1453,26 @@ function ConfiguracaoExibicao({ oficinas, saveOficinas, configuracoes, saveConfi
       </div>
 
       <div className="pt-6 border-t border-stone-200">
-        <h3 className="font-serif font-bold text-indigo-950 mb-1">Comprovante de inscrição por oficina</h3>
-        <p className="text-xs text-slate-500 mb-3">Escolha uma oficina pra controlar o que aparece no comprovante impresso dela.</p>
+        <h3 className="font-serif font-bold text-indigo-950 mb-1">Oficina individual</h3>
+        <p className="text-xs text-slate-500 mb-3">Escolha uma oficina pra controlar a ordem, o texto de crédito e o comprovante impresso dela.</p>
         <select value={oficinaId} onChange={(e) => selecionarOficina(e.target.value)} className="input mb-3">
           <option value="">Selecione a oficina…</option>
           {oficinas.map((o) => <option key={o.id} value={o.id}>{o.nome} · {o.professor}</option>)}
         </select>
         {oficinaSelecionada && (
           <>
+            <div className="flex gap-3 mb-4">
+              <Field label="Ordem na lista do aluno">
+                <input type="number" value={ordem} onChange={(e) => setOrdem(e.target.value)} placeholder="Ex.: 1" className="input" />
+              </Field>
+              <Field label="Crédito exibido (em vez de &quot;Prof. ...&quot;)">
+                <input value={creditos} onChange={(e) => setCreditos(e.target.value)} placeholder='Ex.: Profas. Elaine, Kaila e Lorena' className="input" />
+              </Field>
+            </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarHorario} onChange={(e) => setMostrarHorario(e.target.checked)} /> Mostrar horário</label>
-              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarLocal} onChange={(e) => setMostrarLocal(e.target.checked)} /> Mostrar local</label>
-              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarMateriaisComp} onChange={(e) => setMostrarMateriaisComp(e.target.checked)} /> Mostrar materiais que o aluno deve levar</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarHorario} onChange={(e) => setMostrarHorario(e.target.checked)} /> Mostrar horário no comprovante</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarLocal} onChange={(e) => setMostrarLocal(e.target.checked)} /> Mostrar local no comprovante</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarMateriaisComp} onChange={(e) => setMostrarMateriaisComp(e.target.checked)} /> Mostrar materiais que o aluno deve levar no comprovante</label>
             </div>
             <button onClick={salvarComprovante} disabled={salvandoComprovante} className="mt-3 text-xs font-semibold bg-indigo-950 disabled:opacity-40 text-white px-4 py-2 rounded-lg flex items-center gap-1.5">
               {salvandoComprovante && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
@@ -1926,7 +1943,12 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
   const disponiveis = oficinas
     .filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89))
     .slice()
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    .sort((a, b) => {
+      if (a.ordem != null && b.ordem != null) return a.ordem - b.ordem;
+      if (a.ordem != null) return -1;
+      if (b.ordem != null) return 1;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
   const minhasFilas = filaEspera.filter((f) => f.matricula === matricula);
 
   if (minhaInscricao) {
@@ -1996,7 +2018,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
               >
                 <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
-                {configCards.mostrarProfessor && <span className="text-xs text-slate-400">Prof. {o.professor}</span>}
+                {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
                 {configCards.mostrarVagas && (
                   <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
                     {ocupadas}/{vagasGrupo} vagas
@@ -2024,7 +2046,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 </button>
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1.5">
-                {configCards.mostrarProfessor && <span>Prof. {detalhe.professor}</span>}
+                {configCards.mostrarProfessor && <span>{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
                 {configCards.mostrarAmbiente && <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
                 {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>}
               </div>

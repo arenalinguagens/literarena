@@ -43,6 +43,8 @@ create table if not exists oficinas (
   comprovante_mostrar_horario    boolean not null default true,  -- controla o que aparece no comprovante DESTA oficina
   comprovante_mostrar_local      boolean not null default true,
   comprovante_mostrar_materiais  boolean not null default true,
+  ordem             int4,   -- posição explícita na lista "Escolher Oficina" (menor primeiro); sem valor = depois, em ordem alfabética
+  creditos          text,   -- texto livre exibido no lugar de "Prof. {professor}" (ex.: "Profas. Elaine, Kaila e Lorena"); sem valor = usa o cálculo padrão
   created_at        timestamptz not null default now()
 );
 

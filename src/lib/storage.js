@@ -59,6 +59,8 @@ const TABLES = {
       comprovante_mostrar_horario: o.comprovanteMostrarHorario ?? true,
       comprovante_mostrar_local: o.comprovanteMostrarLocal ?? true,
       comprovante_mostrar_materiais: o.comprovanteMostrarMateriais ?? true,
+      ordem: o.ordem ?? null,
+      creditos: o.creditos ?? null,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
     fromRow: (r) => ({
@@ -95,6 +97,8 @@ const TABLES = {
       comprovanteMostrarHorario: r.comprovante_mostrar_horario ?? true,
       comprovanteMostrarLocal: r.comprovante_mostrar_local ?? true,
       comprovanteMostrarMateriais: r.comprovante_mostrar_materiais ?? true,
+      ordem: r.ordem ?? null,
+      creditos: r.creditos ?? "",
       createdAt: new Date(r.created_at).getTime(),
     }),
   },
