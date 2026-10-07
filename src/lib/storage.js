@@ -56,6 +56,9 @@ const TABLES = {
       descricao_aprovado: o.descricaoAprovado ?? true,
       ambiente_aprovado: o.ambienteAprovado ?? true,
       ambiente_sugestao: o.ambienteSugestao ?? null,
+      comprovante_mostrar_horario: o.comprovanteMostrarHorario ?? true,
+      comprovante_mostrar_local: o.comprovanteMostrarLocal ?? true,
+      comprovante_mostrar_materiais: o.comprovanteMostrarMateriais ?? true,
       created_at: new Date(o.createdAt ?? Date.now()).toISOString(),
     }),
     fromRow: (r) => ({
@@ -87,6 +90,11 @@ const TABLES = {
       descricaoAprovado: r.descricao_aprovado ?? true,
       ambienteAprovado: r.ambiente_aprovado ?? true,
       ambienteSugestao: r.ambiente_sugestao ?? "",
+      // Se a coluna ainda não existir (migração não rodada), trata como
+      // mostrando — é o comportamento que o comprovante sempre teve.
+      comprovanteMostrarHorario: r.comprovante_mostrar_horario ?? true,
+      comprovanteMostrarLocal: r.comprovante_mostrar_local ?? true,
+      comprovanteMostrarMateriais: r.comprovante_mostrar_materiais ?? true,
       createdAt: new Date(r.created_at).getTime(),
     }),
   },
@@ -137,6 +145,15 @@ const TABLES = {
       oficinaId: r.oficina_id,
       createdAt: new Date(r.created_at).getTime(),
     }),
+  },
+  // Configurações gerais do app, guardadas como linhas soltas (uma por
+  // chave) com o valor em JSON — ver "cards_aluno" em App.jsx, que
+  // controla quais campos aparecem nos cards de oficina pro aluno.
+  configuracoes: {
+    table: "configuracoes",
+    idField: "id",
+    toRow: (c) => ({ id: c.id, valor: c.valor }),
+    fromRow: (r) => ({ id: r.id, valor: r.valor }),
   },
 };
 

@@ -8,7 +8,10 @@ import {
   Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown
 } from "lucide-react";
 
-const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera" };
+const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera", CONFIGURACOES: "configuracoes" };
+// Padrão de quais campos aparecem nos cards de oficina pro aluno, usado
+// enquanto a coordenação não salvar uma configuração própria.
+const CONFIG_CARDS_PADRAO = { mostrarProfessor: true, mostrarAmbiente: true, mostrarVagas: true, mostrarMateriais: false };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // Bloqueio temporário do login do professor. Liberado pela coordenação
@@ -101,10 +104,10 @@ function ComprovanteCard({ inscricao, oficina, id }) {
         <span className="text-indigo-400">Matrícula</span><span>{inscricao.matricula}</span>
         <span className="text-indigo-400">Série/turma</span><span>{inscricao.serie} {inscricao.turma}</span>
         <span className="text-indigo-400">Data</span><span>23 de outubro, manhã</span>
-        <span className="text-indigo-400">Horário</span><span>{horarioPorSerie(inscricao.serie)}</span>
-        {oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
+        {oficina?.comprovanteMostrarHorario !== false && <><span className="text-indigo-400">Horário</span><span>{horarioPorSerie(inscricao.serie)}</span></>}
+        {oficina?.comprovanteMostrarLocal !== false && oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
       </div>
-      {formatarMateriais(oficina?.materiais) && (
+      {oficina?.comprovanteMostrarMateriais !== false && formatarMateriais(oficina?.materiais) && (
         <div className="border-t border-dashed border-indigo-700 pt-3 mt-3 text-sm text-left">
           <span className="text-indigo-400 text-xs uppercase tracking-wide">Materiais que o aluno deve levar</span>
           <p className="mt-1">{formatarMateriais(oficina.materiais)}</p>
@@ -155,6 +158,7 @@ export default function App() {
   const [ambientes, setAmbientes] = useState([]);
   const [inscricoes, setInscricoes] = useState([]);
   const [filaEspera, setFilaEspera] = useState([]);
+  const [configuracoes, setConfiguracoes] = useState([]);
   const [view, setView] = useState("home");
   const [professorNome, setProfessorNome] = useState("");
   const [toast, setToast] = useState(null);
@@ -178,12 +182,13 @@ export default function App() {
     setLoading(true);
     setErr(null);
     try {
-      const [o, a, i, f] = await Promise.all([
-        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES), safeGet(KEYS.FILA_ESPERA),
+      const [o, a, i, f, c] = await Promise.all([
+        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES), safeGet(KEYS.FILA_ESPERA), safeGet(KEYS.CONFIGURACOES),
       ]);
       setOficinas(o || []);
       setInscricoes(i || []);
       setFilaEspera(f || []);
+      setConfiguracoes(c || []);
       if (a && a.length > 0) {
         setAmbientes(a);
       } else {
@@ -228,6 +233,8 @@ export default function App() {
   const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes, ambientes);
   const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes);
   const saveFilaEspera = (v) => persist(KEYS.FILA_ESPERA, v, setFilaEspera, filaEspera);
+  const saveConfiguracoes = (v) => persist(KEYS.CONFIGURACOES, v, setConfiguracoes, configuracoes);
+  const configCards = { ...CONFIG_CARDS_PADRAO, ...(configuracoes.find((c) => c.id === "cards_aluno")?.valor || {}) };
 
   const vagasOcupadas = (oficinaId, grupo) =>
     inscricoes.filter((i) => i.oficinaId === oficinaId && (!grupo || grupoPorSerie(i.serie) === grupo)).length;
@@ -289,6 +296,8 @@ export default function App() {
           saveInscricoes={saveInscricoes}
           filaEspera={filaEspera}
           saveFilaEspera={saveFilaEspera}
+          configuracoes={configuracoes}
+          saveConfiguracoes={saveConfiguracoes}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -302,6 +311,7 @@ export default function App() {
           saveInscricoes={saveInscricoes}
           filaEspera={filaEspera}
           saveFilaEspera={saveFilaEspera}
+          configCards={configCards}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -1013,7 +1023,7 @@ function AdminLogin({ onBack, onUnlock }) {
   );
 }
 
-function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, vagasOcupadas, flash }) {
+function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configuracoes, saveConfiguracoes, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("pendentes");
   // Com mais de mil inscritos, não faz sentido montar todos os comprovantes
@@ -1063,7 +1073,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
       <BackBar onBack={onBack} title="Coordenação — LiterArena" tone="dark" />
       <div className="max-w-4xl mx-auto px-5 py-6">
         <div className="flex gap-1 mb-6 bg-stone-100 p-1 rounded-lg w-fit overflow-x-auto">
-          {[["dashboard", "Dashboard"], ["oficinas", "Oficinas"], ["ambientes", "Ambientes"], ["relatorios", "Relatórios"]].map(([k, l]) => (
+          {[["dashboard", "Dashboard"], ["oficinas", "Oficinas"], ["ambientes", "Ambientes"], ["relatorios", "Relatórios"], ["exibicao", "Exibição"]].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-md text-sm font-semibold whitespace-nowrap ${tab === k ? "bg-white shadow text-indigo-950" : "text-slate-500"}`}>{l}</button>
           ))}
         </div>
@@ -1218,6 +1228,10 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             </div>
           </div>
         )}
+
+        {tab === "exibicao" && (
+          <ConfiguracaoExibicao oficinas={oficinas} saveOficinas={saveOficinas} configuracoes={configuracoes} saveConfiguracoes={saveConfiguracoes} flash={flash} />
+        )}
       </div>
       <style>{`
         .input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; }
@@ -1361,6 +1375,96 @@ function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupad
         );
       })}
       {aprovadas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina aprovada ainda.</p>}
+    </div>
+  );
+}
+
+function ConfiguracaoExibicao({ oficinas, saveOficinas, configuracoes, saveConfiguracoes, flash }) {
+  const configSalva = { ...CONFIG_CARDS_PADRAO, ...(configuracoes.find((c) => c.id === "cards_aluno")?.valor || {}) };
+  const [mostrarProfessor, setMostrarProfessor] = useState(configSalva.mostrarProfessor);
+  const [mostrarAmbiente, setMostrarAmbiente] = useState(configSalva.mostrarAmbiente);
+  const [mostrarVagas, setMostrarVagas] = useState(configSalva.mostrarVagas);
+  const [mostrarMateriais, setMostrarMateriais] = useState(configSalva.mostrarMateriais);
+  const [salvandoCards, setSalvandoCards] = useState(false);
+
+  async function salvarCards() {
+    setSalvandoCards(true);
+    const valor = { mostrarProfessor, mostrarAmbiente, mostrarVagas, mostrarMateriais };
+    const outras = configuracoes.filter((c) => c.id !== "cards_aluno");
+    const ok = await saveConfiguracoes([...outras, { id: "cards_aluno", valor }]);
+    setSalvandoCards(false);
+    if (ok) flash("Configuração dos cards salva.");
+  }
+
+  const [oficinaId, setOficinaId] = useState("");
+  const oficinaSelecionada = oficinas.find((o) => o.id === oficinaId) || null;
+  const [mostrarHorario, setMostrarHorario] = useState(true);
+  const [mostrarLocal, setMostrarLocal] = useState(true);
+  const [mostrarMateriaisComp, setMostrarMateriaisComp] = useState(true);
+  const [salvandoComprovante, setSalvandoComprovante] = useState(false);
+
+  function selecionarOficina(id) {
+    setOficinaId(id);
+    const o = oficinas.find((x) => x.id === id);
+    if (o) {
+      setMostrarHorario(o.comprovanteMostrarHorario ?? true);
+      setMostrarLocal(o.comprovanteMostrarLocal ?? true);
+      setMostrarMateriaisComp(o.comprovanteMostrarMateriais ?? true);
+    }
+  }
+
+  async function salvarComprovante() {
+    if (!oficinaId) return;
+    setSalvandoComprovante(true);
+    const ok = await saveOficinas(oficinas.map((o) => (o.id === oficinaId ? {
+      ...o,
+      comprovanteMostrarHorario: mostrarHorario,
+      comprovanteMostrarLocal: mostrarLocal,
+      comprovanteMostrarMateriais: mostrarMateriaisComp,
+    } : o)));
+    setSalvandoComprovante(false);
+    if (ok) flash("Comprovante dessa oficina atualizado.");
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="font-serif font-bold text-indigo-950 mb-1">Cards de oficina pro aluno</h3>
+        <p className="text-xs text-slate-500 mb-3">Controla o que aparece na tela "Escolher Oficina" — vale pra todas as oficinas.</p>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarProfessor} onChange={(e) => setMostrarProfessor(e.target.checked)} /> Mostrar professor (card e painel de detalhes)</label>
+          <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarVagas} onChange={(e) => setMostrarVagas(e.target.checked)} /> Mostrar vagas ocupadas/total (card e painel de detalhes)</label>
+          <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarAmbiente} onChange={(e) => setMostrarAmbiente(e.target.checked)} /> Mostrar ambiente (só no painel de detalhes)</label>
+          <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarMateriais} onChange={(e) => setMostrarMateriais(e.target.checked)} /> Mostrar materiais que o aluno deve levar (só no painel de detalhes)</label>
+        </div>
+        <button onClick={salvarCards} disabled={salvandoCards} className="mt-3 text-xs font-semibold bg-indigo-950 disabled:opacity-40 text-white px-4 py-2 rounded-lg flex items-center gap-1.5">
+          {salvandoCards && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+          {salvandoCards ? "Salvando…" : "Salvar"}
+        </button>
+      </div>
+
+      <div className="pt-6 border-t border-stone-200">
+        <h3 className="font-serif font-bold text-indigo-950 mb-1">Comprovante de inscrição por oficina</h3>
+        <p className="text-xs text-slate-500 mb-3">Escolha uma oficina pra controlar o que aparece no comprovante impresso dela.</p>
+        <select value={oficinaId} onChange={(e) => selecionarOficina(e.target.value)} className="input mb-3">
+          <option value="">Selecione a oficina…</option>
+          {oficinas.map((o) => <option key={o.id} value={o.id}>{o.nome} · {o.professor}</option>)}
+        </select>
+        {oficinaSelecionada && (
+          <>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarHorario} onChange={(e) => setMostrarHorario(e.target.checked)} /> Mostrar horário</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarLocal} onChange={(e) => setMostrarLocal(e.target.checked)} /> Mostrar local</label>
+              <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={mostrarMateriaisComp} onChange={(e) => setMostrarMateriaisComp(e.target.checked)} /> Mostrar materiais que o aluno deve levar</label>
+            </div>
+            <button onClick={salvarComprovante} disabled={salvandoComprovante} className="mt-3 text-xs font-semibold bg-indigo-950 disabled:opacity-40 text-white px-4 py-2 rounded-lg flex items-center gap-1.5">
+              {salvandoComprovante && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              {salvandoComprovante ? "Salvando…" : "Salvar"}
+            </button>
+          </>
+        )}
+      </div>
+      <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
     </div>
   );
 }
@@ -1772,7 +1876,7 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 }
 
 /* ---------------- ALUNO ---------------- */
-function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, vagasOcupadas, flash }) {
+function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configCards, vagasOcupadas, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [serie, setSerie] = useState("");
@@ -1886,10 +1990,12 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
               >
                 <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
-                <span className="text-xs text-slate-400">Prof. {o.professor}</span>
-                <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
-                  {ocupadas}/{vagasGrupo} vagas
-                </span>
+                {configCards.mostrarProfessor && <span className="text-xs text-slate-400">Prof. {o.professor}</span>}
+                {configCards.mostrarVagas && (
+                  <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                    {ocupadas}/{vagasGrupo} vagas
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1911,12 +2017,15 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                   <X className="w-3.5 h-3.5 text-stone-600" />
                 </button>
               </div>
-              <div className="flex gap-3 text-xs text-slate-400 mt-1.5">
-                <span>Prof. {detalhe.professor}</span>
-                <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>
-                <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>
+              <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1.5">
+                {configCards.mostrarProfessor && <span>Prof. {detalhe.professor}</span>}
+                {configCards.mostrarAmbiente && <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
+                {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>}
               </div>
               <p className="text-sm text-slate-600 mt-3 leading-relaxed">{detalhe.descricao}</p>
+              {configCards.mostrarMateriais && formatarMateriais(detalhe.materiais) && (
+                <p className="text-xs text-slate-400 mt-2"><strong className="text-slate-500">Leve:</strong> {formatarMateriais(detalhe.materiais)}</p>
+              )}
 
               {cheia ? (
                 <button

@@ -40,6 +40,9 @@ create table if not exists oficinas (
   descricao_aprovado  boolean not null default true,
   ambiente_aprovado   boolean not null default true,  -- false quando a coordenação já reservou o ambiente em nome do professor
   ambiente_sugestao   text,   -- preenchido pelo professor quando ele prefere outro ambiente
+  comprovante_mostrar_horario    boolean not null default true,  -- controla o que aparece no comprovante DESTA oficina
+  comprovante_mostrar_local      boolean not null default true,
+  comprovante_mostrar_materiais  boolean not null default true,
   created_at        timestamptz not null default now()
 );
 
@@ -76,6 +79,15 @@ create table if not exists fila_espera (
 
 create index if not exists fila_espera_oficina_id_idx on fila_espera (oficina_id);
 
+-- configuracoes: pares chave/valor pro app (uma linha por configuração,
+-- valor em JSON). Hoje só tem "cards_aluno", que controla quais campos
+-- aparecem nos cards de oficina pro aluno (ver RelatorioInscricoes/
+-- AlunoPortal em src/App.jsx).
+create table if not exists configuracoes (
+  id     text primary key,
+  valor  jsonb not null default '{}'::jsonb
+);
+
 -- professores: login do professor (nome + senha). A senha nunca é
 -- guardada em texto puro — só salt + hash (ver src/lib/auth.js).
 create table if not exists professores (
@@ -98,6 +110,7 @@ alter table oficinas enable row level security;
 alter table inscricoes enable row level security;
 alter table professores enable row level security;
 alter table fila_espera enable row level security;
+alter table configuracoes enable row level security;
 
 create policy "ambientes: leitura publica" on ambientes for select using (true);
 create policy "ambientes: escrita publica" on ambientes for all using (true) with check (true);
@@ -110,6 +123,9 @@ create policy "inscricoes: escrita publica" on inscricoes for all using (true) w
 
 create policy "fila_espera: leitura publica" on fila_espera for select using (true);
 create policy "fila_espera: escrita publica" on fila_espera for all using (true) with check (true);
+
+create policy "configuracoes: leitura publica" on configuracoes for select using (true);
+create policy "configuracoes: escrita publica" on configuracoes for all using (true) with check (true);
 
 -- professores: leitura, criação de conta e atualização de senha (usada
 -- pela coordenação para redefinir a senha de quem esqueceu — ver
