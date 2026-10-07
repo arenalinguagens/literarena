@@ -1886,7 +1886,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
               >
                 <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
-                <span className="text-xs text-slate-400">{o.professor}</span>
+                <span className="text-xs text-slate-400">Prof. {o.professor}</span>
                 <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
                   {ocupadas}/{vagasGrupo} vagas
                 </span>
@@ -1912,7 +1912,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 </button>
               </div>
               <div className="flex gap-3 text-xs text-slate-400 mt-1.5">
-                <span>{detalhe.professor}</span>
+                <span>Prof. {detalhe.professor}</span>
                 <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>
                 <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>
               </div>
