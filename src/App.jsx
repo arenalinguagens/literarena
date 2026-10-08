@@ -2001,8 +2001,12 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
     setManual(false);
   }
 
-  const semCorrespondencia = alunos.length > 0 && matricula.length >= 4 && !alunoEncontrado;
-  const mostrarManual = manual || alunos.length === 0 || semCorrespondencia;
+  // Só libera nome/série/turma depois que o aluno digitou a matrícula
+  // (mesmo quando a lista oficial está vazia/indisponível) — ninguém
+  // preenche o resto sem ao menos tentar a matrícula primeiro.
+  const matriculaPronta = matricula.length >= 4;
+  const semCorrespondencia = matriculaPronta && alunos.length > 0 && !alunoEncontrado;
+  const mostrarManual = matricula.length > 0 && (manual || (matriculaPronta && !alunoEncontrado));
 
   if (!identificado) {
     return (
