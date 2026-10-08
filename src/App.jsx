@@ -8,7 +8,7 @@ import {
   Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown
 } from "lucide-react";
 
-const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera", CONFIGURACOES: "configuracoes" };
+const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera", CONFIGURACOES: "configuracoes", ALUNOS: "alunos" };
 // Padrão de quais campos aparecem nos cards de oficina pro aluno, usado
 // enquanto a coordenação não salvar uma configuração própria.
 const CONFIG_CARDS_PADRAO = { mostrarProfessor: true, mostrarAmbiente: true, mostrarVagas: true, mostrarMateriais: false };
@@ -38,6 +38,9 @@ function formatarMateriais(materiais) {
 
 const SERIES = ["6º ano", "7º ano", "8º ano", "9º ano"];
 const TURMAS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+// Valor de "ambienteAlocado" pra oficina que vai numa sala comum, mas cuja
+// sala específica a coordenação ainda vai definir depois.
+const AMBIENTE_SALA_PADRAO = "Sala a confirmar";
 function horarioPorSerie(serie) {
   if (serie === "6º ano" || serie === "7º ano") return "3º horário";
   if (serie === "8º ano" || serie === "9º ano") return "5º horário";
@@ -162,6 +165,7 @@ export default function App() {
   const [inscricoes, setInscricoes] = useState([]);
   const [filaEspera, setFilaEspera] = useState([]);
   const [configuracoes, setConfiguracoes] = useState([]);
+  const [alunos, setAlunos] = useState([]);
   const [view, setView] = useState("home");
   const [professorNome, setProfessorNome] = useState("");
   const [toast, setToast] = useState(null);
@@ -185,13 +189,14 @@ export default function App() {
     setLoading(true);
     setErr(null);
     try {
-      const [o, a, i, f, c] = await Promise.all([
-        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES), safeGet(KEYS.FILA_ESPERA), safeGet(KEYS.CONFIGURACOES),
+      const [o, a, i, f, c, al] = await Promise.all([
+        safeGet(KEYS.OFICINAS), safeGet(KEYS.AMBIENTES), safeGet(KEYS.INSCRICOES), safeGet(KEYS.FILA_ESPERA), safeGet(KEYS.CONFIGURACOES), safeGet(KEYS.ALUNOS),
       ]);
       setOficinas(o || []);
       setInscricoes(i || []);
       setFilaEspera(f || []);
       setConfiguracoes(c || []);
+      setAlunos(al || []);
       if (a && a.length > 0) {
         setAmbientes(a);
       } else {
@@ -301,6 +306,7 @@ export default function App() {
           saveFilaEspera={saveFilaEspera}
           configuracoes={configuracoes}
           saveConfiguracoes={saveConfiguracoes}
+          alunos={alunos}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -315,6 +321,7 @@ export default function App() {
           filaEspera={filaEspera}
           saveFilaEspera={saveFilaEspera}
           configCards={configCards}
+          alunos={alunos}
           vagasOcupadas={vagasOcupadas}
           flash={flash}
         />
@@ -917,8 +924,8 @@ function OficinaForm({ onSubmit, onCancel, initial, professorNome, ambientes }) 
             {querOutroAmbiente && (
               <select value={ambienteSugestao} onChange={(e) => setAmbienteSugestao(e.target.value)} className="input mt-2">
                 <option value="">Selecione o ambiente que prefere</option>
-                {initial.ambienteAlocado !== "Sala de aula convencional" && (
-                  <option value="Sala de aula convencional">Sala de aula convencional</option>
+                {initial.ambienteAlocado !== AMBIENTE_SALA_PADRAO && (
+                  <option value={AMBIENTE_SALA_PADRAO}>{AMBIENTE_SALA_PADRAO}</option>
                 )}
                 {(ambientes || [])
                   .filter((a) => a.nome !== initial.ambienteAlocado)
@@ -1026,7 +1033,7 @@ function AdminLogin({ onBack, onUnlock }) {
   );
 }
 
-function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configuracoes, saveConfiguracoes, vagasOcupadas, flash }) {
+function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configuracoes, saveConfiguracoes, alunos, vagasOcupadas, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("pendentes");
   // Com mais de mil inscritos, não faz sentido montar todos os comprovantes
@@ -1141,6 +1148,12 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <p className="text-xs text-slate-500 mt-0.5">Alunos que pediram pra entrar na fila de uma oficina lotada. Visível só aqui, pra coordenação.</p>
             </div>
             <RelatorioFilaEspera oficinas={oficinas} filaEspera={filaEspera} saveFilaEspera={saveFilaEspera} flash={flash} />
+
+            <div className="mt-8 mb-2">
+              <h3 className="font-serif font-bold text-indigo-950">Alunos sem inscrição</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Cruza a matrícula oficial dos alunos com as inscrições feitas — mostra quem na lista da secretaria ainda não escolheu oficina.</p>
+            </div>
+            <RelatorioPendencias alunos={alunos} inscricoes={inscricoes} />
 
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de oficinas</h3>
@@ -1545,6 +1558,60 @@ function RelatorioFilaEspera({ oficinas, filaEspera, saveFilaEspera, flash }) {
   );
 }
 
+// Cruza a matrícula oficial (tabela "alunos", importada da secretaria) com
+// quem já se inscreveu, pra coordenação saber quem ainda falta escolher
+// oficina — sem travar a inscrição livre que já existe hoje.
+function RelatorioPendencias({ alunos, inscricoes }) {
+  const [abertaId, setAbertaId] = useState(null);
+
+  if (alunos.length === 0) {
+    return <p className="text-sm text-slate-400">Nenhuma lista de alunos importada ainda — peça pra importarem a matrícula oficial no banco.</p>;
+  }
+
+  const matriculasInscritas = new Set(inscricoes.map((i) => i.matricula));
+  const pendentes = alunos.filter((a) => !matriculasInscritas.has(a.matricula));
+  const grupos = SERIES.flatMap((serie) => TURMAS.map((turma) => ({ serie, turma })))
+    .map(({ serie, turma }) => ({ serie, turma, alunos: pendentes.filter((a) => a.serie === serie && a.turma === turma) }))
+    .filter((g) => g.alunos.length > 0);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-slate-600">
+        <span className="text-2xl font-bold text-indigo-950">{pendentes.length}</span> de {alunos.length} {pendentes.length === 1 ? "aluno ainda sem inscrição" : "alunos ainda sem inscrição"}.
+      </p>
+      {grupos.map((g) => {
+        const id = `${g.serie}-${g.turma}`;
+        const expandida = abertaId === id;
+        return (
+          <div key={id} className="border border-stone-200 rounded-lg bg-white">
+            <button
+              type="button"
+              onClick={() => setAbertaId(expandida ? null : id)}
+              className="w-full text-left p-3 flex items-center justify-between gap-2"
+            >
+              <span className="text-sm font-semibold">{g.serie} <span className="text-slate-400 font-normal">· Turma {g.turma}</span></span>
+              <span className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">{g.alunos.length}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandida ? "rotate-180" : ""}`} />
+              </span>
+            </button>
+            {expandida && (
+              <div className="border-t border-stone-100 px-3 py-2">
+                <ul className="divide-y divide-stone-100">
+                  {g.alunos.map((a) => (
+                    <li key={a.matricula} className="py-1.5 text-sm">{a.nome} <span className="text-slate-400">· matrícula {a.matricula}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
+    </div>
+  );
+}
+
 function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   const [professor, setProfessor] = useState("");
   const [nome, setNome] = useState("");
@@ -1624,7 +1691,7 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
           <Field label="Ambiente">
             <select value={ambienteAlocado} onChange={(e) => setAmbienteAlocado(e.target.value)} className="input">
               <option value="">Selecione…</option>
-              <option value="Sala de aula convencional">Sala de aula convencional</option>
+              <option value={AMBIENTE_SALA_PADRAO}>{AMBIENTE_SALA_PADRAO}</option>
               {(ambientes || []).slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
             </select>
           </Field>
@@ -1659,11 +1726,11 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
   const outrasNesseAmbiente89 = mesmoAmbienteAtual && oficina.grupo89
     ? (alocacaoCount89[ambienteAlocado] || 0) - 1
     : (alocacaoCount89[ambienteAlocado] || 0);
-  // "Sala de aula convencional" não é um espaço único (a escola tem várias
-  // salas comuns) — nunca é conflito. E como as sessões do 6º/7º e do
-  // 8º/9º ano acontecem em horários diferentes, só é conflito de verdade
-  // quando outra oficina usa a mesma sala NA MESMA sessão.
-  const ehSalaEspecifica = ambienteAlocado && ambienteAlocado !== "Sala de aula convencional";
+  // "Sala a confirmar" não é um espaço único (a escola tem várias salas
+  // comuns) — nunca é conflito. E como as sessões do 6º/7º e do 8º/9º ano
+  // acontecem em horários diferentes, só é conflito de verdade quando
+  // outra oficina usa a mesma sala NA MESMA sessão.
+  const ehSalaEspecifica = ambienteAlocado && ambienteAlocado !== AMBIENTE_SALA_PADRAO;
   const conflito67 = ehSalaEspecifica && grupo67 && outrasNesseAmbiente67 > 0;
   const conflito89 = ehSalaEspecifica && grupo89 && outrasNesseAmbiente89 > 0;
   const conflito = conflito67 || conflito89;
@@ -1766,7 +1833,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
             className={`input ${conflito ? "border-rose-400 focus:ring-rose-400" : ""}`}
           >
             <option value="">A definir</option>
-            <option value="Sala de aula convencional">Sala de aula convencional</option>
+            <option value={AMBIENTE_SALA_PADRAO}>{AMBIENTE_SALA_PADRAO}</option>
             {ambientes.slice().sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => <option key={a.id} value={a.nome}>{a.nome}</option>)}
           </select>
           {conflito && (
@@ -1893,7 +1960,7 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 }
 
 /* ---------------- ALUNO ---------------- */
-function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configCards, vagasOcupadas, flash }) {
+function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configCards, alunos, vagasOcupadas, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [serie, setSerie] = useState("");
@@ -1901,11 +1968,41 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
   const [identificado, setIdentificado] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [detalheId, setDetalheId] = useState(null);
+  const [manual, setManual] = useState(false);
 
   const minhaInscricao = useMemo(
     () => inscricoes.find((i) => i.matricula === matricula),
     [inscricoes, matricula]
   );
+
+  // Busca a matrícula na lista oficial (tabela "alunos") pra preencher
+  // nome/série/turma sozinho, assim o aluno não erra o nome digitando e
+  // percebe na hora se digitou a matrícula errada (em vez de só descobrir
+  // depois, quando a coordenação checa quem não se inscreveu).
+  const alunoEncontrado = useMemo(
+    () => (matricula ? alunos.find((a) => a.matricula === matricula) : null),
+    [alunos, matricula]
+  );
+
+  useEffect(() => {
+    if (alunoEncontrado) {
+      setNomeAluno(alunoEncontrado.nome);
+      setSerie(alunoEncontrado.serie);
+      setTurma(alunoEncontrado.turma);
+    } else {
+      setNomeAluno("");
+      setSerie("");
+      setTurma("");
+    }
+  }, [alunoEncontrado]);
+
+  function mudarMatricula(v) {
+    setMatricula(v.trim());
+    setManual(false);
+  }
+
+  const semCorrespondencia = alunos.length > 0 && matricula.length >= 4 && !alunoEncontrado;
+  const mostrarManual = manual || alunos.length === 0 || semCorrespondencia;
 
   if (!identificado) {
     return (
@@ -1914,18 +2011,36 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
         <div className="max-w-sm mx-auto px-6 py-16 text-center">
           <Ticket className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
           <p className="text-slate-600 mb-4">Informe seus dados para escolher sua oficina.</p>
-          <input value={matricula} onChange={(e) => setMatricula(e.target.value.trim())} placeholder="Número de matrícula" className="input mb-3" />
-          <input value={nomeAluno} onChange={(e) => setNomeAluno(e.target.value)} placeholder="Seu nome completo" className="input mb-3" />
-          <div className="flex gap-3 mb-3">
-            <select value={serie} onChange={(e) => setSerie(e.target.value)} className="input">
-              <option value="">Série</option>
-              {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={turma} onChange={(e) => setTurma(e.target.value)} className="input">
-              <option value="">Turma</option>
-              {TURMAS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
+          <input value={matricula} onChange={(e) => mudarMatricula(e.target.value)} placeholder="Número de matrícula" className="input mb-3" />
+
+          {alunoEncontrado && !manual && (
+            <div className="text-left bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5 mb-3">
+              <p className="text-sm font-semibold text-emerald-800">{alunoEncontrado.nome}</p>
+              <p className="text-xs text-emerald-700 mt-0.5">{alunoEncontrado.serie} · Turma {alunoEncontrado.turma}</p>
+              <button type="button" onClick={() => setManual(true)} className="text-xs text-emerald-700 underline mt-1.5">Não é você? Corrigir manualmente</button>
+            </div>
+          )}
+
+          {semCorrespondencia && !manual && (
+            <p className="text-left text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">Não encontramos essa matrícula na lista da secretaria. Confira o número ou preencha seus dados manualmente abaixo.</p>
+          )}
+
+          {mostrarManual && (
+            <>
+              <input value={nomeAluno} onChange={(e) => setNomeAluno(e.target.value)} placeholder="Seu nome completo" className="input mb-3" />
+              <div className="flex gap-3 mb-3">
+                <select value={serie} onChange={(e) => setSerie(e.target.value)} className="input">
+                  <option value="">Série</option>
+                  {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={turma} onChange={(e) => setTurma(e.target.value)} className="input">
+                  <option value="">Turma</option>
+                  {TURMAS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+
           <button
             disabled={!matricula || !nomeAluno.trim() || !serie || !turma.trim()}
             onClick={() => setIdentificado(true)}

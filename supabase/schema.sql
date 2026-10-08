@@ -90,6 +90,16 @@ create table if not exists configuracoes (
   valor  jsonb not null default '{}'::jsonb
 );
 
+-- alunos: matrícula oficial de todos os alunos, importada da secretaria.
+-- Só é lida pelo app (relatório de pendências em Relatórios, que cruza
+-- com "inscricoes" por matrícula) — nunca é editada pelo app.
+create table if not exists alunos (
+  matricula  text primary key,
+  nome       text not null,
+  serie      text not null,
+  turma      text not null
+);
+
 -- professores: login do professor (nome + senha). A senha nunca é
 -- guardada em texto puro — só salt + hash (ver src/lib/auth.js).
 create table if not exists professores (

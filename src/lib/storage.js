@@ -159,6 +159,15 @@ const TABLES = {
     toRow: (c) => ({ id: c.id, valor: c.valor }),
     fromRow: (r) => ({ id: r.id, valor: r.valor }),
   },
+  // Matrícula oficial de todos os alunos (importada da secretaria), usada
+  // só pra cruzar com "inscricoes" no relatório de pendências — não é
+  // editada pelo app, só lida.
+  alunos: {
+    table: "alunos",
+    idField: "matricula",
+    toRow: (a) => ({ matricula: a.matricula, nome: a.nome, serie: a.serie, turma: a.turma }),
+    fromRow: (r) => ({ matricula: r.matricula, nome: r.nome, serie: r.serie, turma: r.turma }),
+  },
 };
 
 export const storage = {
