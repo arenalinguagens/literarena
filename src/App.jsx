@@ -2015,7 +2015,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
         <div className="max-w-sm mx-auto px-6 py-16 text-center">
           <Ticket className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
           <p className="text-slate-600 mb-4">Informe seus dados para escolher sua oficina.</p>
-          <input value={matricula} onChange={(e) => mudarMatricula(e.target.value)} placeholder="Número de matrícula" className="input mb-3" />
+          <input value={matricula} onChange={(e) => mudarMatricula(e.target.value)} placeholder="Número de matrícula (RA)" className="input mb-3" />
 
           {alunoEncontrado && !manual && (
             <div className="text-left bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5 mb-3">
