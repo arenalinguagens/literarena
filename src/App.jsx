@@ -2017,7 +2017,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
             <div className="text-left bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5 mb-3">
               <p className="text-sm font-semibold text-emerald-800">{alunoEncontrado.nome}</p>
               <p className="text-xs text-emerald-700 mt-0.5">{alunoEncontrado.serie} · Turma {alunoEncontrado.turma}</p>
-              <button type="button" onClick={() => setManual(true)} className="text-xs text-emerald-700 underline mt-1.5">Não é você? Corrigir manualmente</button>
+              <button type="button" onClick={() => setManual(true)} className="text-xs text-emerald-700 underline mt-1.5">Não é você, ou mudou de turma? Corrigir manualmente</button>
             </div>
           )}
 
