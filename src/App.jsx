@@ -368,7 +368,7 @@ function Home({ onNav, totals }) {
 
         <div className="flex justify-center gap-8 mt-10 text-sm text-slate-500">
           <div><span className="text-teal-600 font-bold">{totals.oficinas}</span> oficinas</div>
-          <div><span className="text-teal-600 font-bold">{totals.professores}</span> professores</div>
+          <div><span className="text-teal-600 font-bold">{totals.professores}</span> professores com oficina</div>
           <div><span className="text-teal-600 font-bold">{totals.inscricoes}</span> inscrições</div>
         </div>
 
@@ -1092,7 +1092,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
           <div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               <Stat icon={BookOpen} label="Oficinas" value={oficinas.length} />
-              <Stat icon={GraduationCap} label="Professores" value={new Set(oficinas.map((o) => o.professor.toLowerCase())).size} />
+              <Stat icon={GraduationCap} label="Professores com oficina" value={new Set(oficinas.map((o) => o.professor.toLowerCase())).size} />
               <Stat icon={Users} label="Alunos inscritos" value={inscricoes.length} />
               <Stat icon={Ticket} label="Vagas · 6º e 7º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo67 ? (o.vagas67 || 0) : 0), 0)} />
               <Stat icon={Ticket} label="Vagas · 8º e 9º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo89 ? (o.vagas89 || 0) : 0), 0)} />

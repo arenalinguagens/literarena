@@ -171,17 +171,33 @@ const TABLES = {
 };
 
 export const storage = {
+  // O Supabase/PostgREST limita o tamanho de cada resposta (1000 linhas
+  // por padrão) — com a tabela "alunos" passando disso, uma busca única
+  // cortava os últimos alunos (ex.: as turmas H do 9º ano). Por isso
+  // busca em páginas até a página vir mais curta que o tamanho pedido.
+  // Ordena sempre (por orderBy, ou pelo id como padrão estável) porque
+  // sem ORDER BY o Postgres não garante a mesma ordem entre as páginas.
   async get(key) {
     const cfg = TABLES[key];
     if (!cfg) return null;
 
-    let query = supabase.from(cfg.table).select("*");
-    if (cfg.orderBy) query = query.order(cfg.orderBy, { ascending: true });
+    const PAGE_SIZE = 1000;
+    const colunaOrdem = cfg.orderBy || cfg.idField;
+    let linhas = [];
+    let inicio = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from(cfg.table)
+        .select("*")
+        .order(colunaOrdem, { ascending: true })
+        .range(inicio, inicio + PAGE_SIZE - 1);
+      if (error) throw error;
+      linhas = linhas.concat(data);
+      if (!data || data.length < PAGE_SIZE) break;
+      inicio += PAGE_SIZE;
+    }
 
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return { value: JSON.stringify(data.map(cfg.fromRow)) };
+    return { value: JSON.stringify(linhas.map(cfg.fromRow)) };
   },
 
   // Busca UMA linha direto do banco (sem passar pela cópia local, que
