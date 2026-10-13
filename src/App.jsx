@@ -225,24 +225,35 @@ export default function App() {
 
   // Retorna true se realmente salvou. Se falhar, desfaz a mudança otimista
   // (a tela nunca mostra algo como salvo quando na verdade não foi).
-  async function persist(key, value, setter, previous) {
+  // `mensagemErro`, se passado, decide a mensagem a partir do erro real
+  // (ex.: vaga lotada por uma trava do banco) em vez da mensagem genérica.
+  async function persist(key, value, setter, previous, mensagemErro) {
     setter(value);
     try {
       await storage.set(key, JSON.stringify(value), previous);
       return true;
     } catch (e) {
       setter(previous);
-      flash("Não foi possível salvar — tente de novo. Se persistir, avise a coordenação.", true);
+      flash(mensagemErro?.(e) || "Não foi possível salvar — tente de novo. Se persistir, avise a coordenação.", true);
       return false;
     }
   }
 
   const saveOficinas = (v) => persist(KEYS.OFICINAS, v, setOficinas, oficinas);
   const saveAmbientes = (v) => persist(KEYS.AMBIENTES, v, setAmbientes, ambientes);
-  const saveInscricoes = (v) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes);
+  const saveInscricoes = (v, mensagemErro) => persist(KEYS.INSCRICOES, v, setInscricoes, inscricoes, mensagemErro);
   const saveFilaEspera = (v) => persist(KEYS.FILA_ESPERA, v, setFilaEspera, filaEspera);
   const saveConfiguracoes = (v) => persist(KEYS.CONFIGURACOES, v, setConfiguracoes, configuracoes);
   const configCards = { ...CONFIG_CARDS_PADRAO, ...(configuracoes.find((c) => c.id === "cards_aluno")?.valor || {}) };
+
+  // Depois de uma inscrição rejeitada pela trava de vagas do banco (dois
+  // alunos pegaram a mesma última vaga ao mesmo tempo), a cópia local de
+  // "inscricoes" deste navegador ainda não sabe da inscrição que o OUTRO
+  // aluno conseguiu gravar — por isso busca de novo do banco, senão a
+  // tela continuaria mostrando a vaga como livre.
+  async function refreshInscricoes() {
+    setInscricoes(await safeGet(KEYS.INSCRICOES));
+  }
 
   const vagasOcupadas = (oficinaId, grupo) =>
     inscricoes.filter((i) => i.oficinaId === oficinaId && (!grupo || grupoPorSerie(i.serie) === grupo)).length;
@@ -318,6 +329,7 @@ export default function App() {
           oficinas={oficinas}
           inscricoes={inscricoes}
           saveInscricoes={saveInscricoes}
+          refreshInscricoes={refreshInscricoes}
           filaEspera={filaEspera}
           saveFilaEspera={saveFilaEspera}
           configCards={configCards}
@@ -1625,7 +1637,10 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   async function criar() {
     setSalvando(true);
     try {
-      const vagasNum = Number(vagas) || 0;
+      // vagas.trim() === "" -> null (sem limite definido ainda). Usar
+      // "|| null" aqui seria um bug: 0 vagas digitado de propósito (pra
+      // fechar a oficina) viraria null (sem limite) por 0 ser falsy.
+      const vagasNum = vagas.trim() === "" ? null : Number(vagas);
       const ok = await saveOficinas([
         ...oficinas,
         {
@@ -1635,15 +1650,15 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
           descricao: descricao.trim(),
           modoEquipe: "sozinho",
           colegas: "",
-          qtdAlunos: vagasNum,
+          qtdAlunos: vagasNum ?? 0,
           materiais: "[]",
           materiaisNecessarios: "[]",
           ambienteTipo: "sala",
           ambienteDetalhe: "",
           status: "pendente",
-          vagas: vagasNum || null,
-          vagas67: vagasNum || null,
-          vagas89: vagasNum || null,
+          vagas: vagasNum,
+          vagas67: vagasNum,
+          vagas89: vagasNum,
           grupo67: true,
           grupo89: true,
           ambienteAlocado,
@@ -1805,7 +1820,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
             </label>
             {grupo67 && (
               <div className="mt-1.5 flex items-center gap-2">
-                <input type="number" min="0" value={vagas67 ?? ""} onChange={(e) => setVagas67(Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                <input type="number" min="0" value={vagas67 ?? ""} onChange={(e) => setVagas67(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
                 <span className="text-xs text-slate-500">vagas · {ocupadas67} inscritos</span>
               </div>
             )}
@@ -1817,7 +1832,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
             </label>
             {grupo89 && (
               <div className="mt-1.5 flex items-center gap-2">
-                <input type="number" min="0" value={vagas89 ?? ""} onChange={(e) => setVagas89(Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                <input type="number" min="0" value={vagas89 ?? ""} onChange={(e) => setVagas89(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
                 <span className="text-xs text-slate-500">vagas · {ocupadas89} inscritos</span>
               </div>
             )}
@@ -1960,7 +1975,7 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 }
 
 /* ---------------- ALUNO ---------------- */
-function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configCards, alunos, vagasOcupadas, flash }) {
+function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInscricoes, filaEspera, saveFilaEspera, configCards, alunos, vagasOcupadas, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [serie, setSerie] = useState("");
@@ -2129,7 +2144,11 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
           {disponiveis.map((o) => {
             const vagasGrupo = meuGrupo === "67" ? o.vagas67 : o.vagas89;
             const ocupadas = vagasOcupadas(o.id, meuGrupo);
-            const cheia = ocupadas >= vagasGrupo;
+            // vagasGrupo null/indefinido = a coordenação ainda não definiu um
+            // limite pra essa sessão — trata como sem limite (nunca cheia),
+            // nunca como 0 vagas (senão toda oficina sem vagas preenchidas
+            // nasceria travada, sem ninguém conseguir se inscrever).
+            const cheia = vagasGrupo != null && ocupadas >= vagasGrupo;
             return (
               <button
                 key={o.id}
@@ -2140,7 +2159,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                 {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
                 {configCards.mostrarVagas && (
                   <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
-                    {ocupadas}/{vagasGrupo} vagas
+                    {ocupadas}/{vagasGrupo ?? "—"} vagas
                   </span>
                 )}
               </button>
@@ -2153,7 +2172,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
       {detalhe && (() => {
         const vagasGrupo = meuGrupo === "67" ? detalhe.vagas67 : detalhe.vagas89;
         const ocupadas = vagasOcupadas(detalhe.id, meuGrupo);
-        const cheia = ocupadas >= vagasGrupo;
+        const cheia = vagasGrupo != null && ocupadas >= vagasGrupo;
         const naFila = minhasFilas.some((f) => f.oficinaId === detalhe.id);
         return (
           <div className="fixed inset-0 bg-stone-900/45 flex items-end sm:items-center sm:justify-center z-50" onClick={() => setDetalheId(null)}>
@@ -2167,7 +2186,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
               <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1.5">
                 {configCards.mostrarProfessor && <span>{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
                 {configCards.mostrarAmbiente && <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
-                {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo} vagas</span>}
+                {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo ?? "—"} vagas</span>}
               </div>
               <p className="text-sm text-slate-600 mt-3 leading-relaxed">{detalhe.descricao}</p>
               {configCards.mostrarMateriais && formatarMateriais(detalhe.materiais) && (
@@ -2194,7 +2213,13 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, filaEspera,
                   onClick={async () => {
                     if (!confirm(`Tem certeza que quer se inscrever em "${detalhe.nome}"? Não será possível alterar depois sem cancelar antes.`)) return;
                     setProcessando(true);
-                    const ok = await saveInscricoes([...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, timestamp: Date.now() }]);
+                    const ok = await saveInscricoes(
+                      [...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, timestamp: Date.now() }],
+                      (e) => (e?.code === "P0001" || /OFICINA_LOTADA/i.test(e?.message || ""))
+                        ? "Essa vaga acabou de ser preenchida por outro aluno. Escolha outra oficina."
+                        : null
+                    );
+                    if (!ok) await refreshInscricoes();
                     setProcessando(false);
                     if (ok) flash("Inscrição confirmada!");
                   }}

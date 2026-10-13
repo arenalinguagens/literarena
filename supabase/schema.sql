@@ -63,6 +63,68 @@ create table if not exists inscricoes (
 
 create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 
+-- Trava de vagas no banco: o app confere vagas no navegador antes de
+-- inscrever, mas isso sozinho não impede que dois alunos cliquem ao
+-- mesmo tempo na última vaga e os dois passem na conferência (cada um
+-- vendo uma cópia da tela de antes do outro gravar). Esse gatilho
+-- recalcula a ocupação DENTRO da transação do insert/update, travando a
+-- linha da oficina primeiro (for update) pra duas tentativas concorrentes
+-- pela mesma oficina serializarem em vez de passarem juntas.
+create or replace function checar_vagas_inscricao() returns trigger as $$
+declare
+  v_grupo  text;
+  v_vagas  int4;
+  v_ocupadas int4;
+begin
+  if new.oficina_id is null then
+    return new;
+  end if;
+
+  if new.serie in ('6º ano', '7º ano') then
+    v_grupo := '67';
+  elsif new.serie in ('8º ano', '9º ano') then
+    v_grupo := '89';
+  else
+    return new; -- série não reconhecida: não é esse gatilho que valida isso
+  end if;
+
+  -- Trava a linha da oficina: concorrentes pela MESMA oficina esperam
+  -- aqui, serializando a contagem abaixo (sem isso, duas transações
+  -- concorrentes poderiam contar a mesma vaga livre e ambas passarem).
+  perform 1 from oficinas where id = new.oficina_id for update;
+
+  if v_grupo = '67' then
+    select vagas_67 into v_vagas from oficinas where id = new.oficina_id;
+  else
+    select vagas_89 into v_vagas from oficinas where id = new.oficina_id;
+  end if;
+
+  if v_vagas is null then
+    return new; -- sem limite definido pra essa sessão: não trava
+  end if;
+
+  select count(*) into v_ocupadas
+  from inscricoes i
+  where i.oficina_id = new.oficina_id
+    and i.matricula <> new.matricula
+    and (
+      (v_grupo = '67' and i.serie in ('6º ano', '7º ano')) or
+      (v_grupo = '89' and i.serie in ('8º ano', '9º ano'))
+    );
+
+  if v_ocupadas >= v_vagas then
+    raise exception 'OFICINA_LOTADA' using errcode = 'P0001';
+  end if;
+
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_checar_vagas_inscricao on inscricoes;
+create trigger trg_checar_vagas_inscricao
+  before insert or update of oficina_id, serie on inscricoes
+  for each row execute function checar_vagas_inscricao();
+
 -- fila_espera: registro de interesse de um aluno numa oficina já lotada
 -- (não garante vaga — é só pra coordenação saber quem avisar se abrir
 -- uma). Separada de "inscricoes" de propósito: o aluno continua sem
@@ -123,6 +185,7 @@ alter table inscricoes enable row level security;
 alter table professores enable row level security;
 alter table fila_espera enable row level security;
 alter table configuracoes enable row level security;
+alter table alunos enable row level security;
 
 create policy "ambientes: leitura publica" on ambientes for select using (true);
 create policy "ambientes: escrita publica" on ambientes for all using (true) with check (true);
@@ -138,6 +201,10 @@ create policy "fila_espera: escrita publica" on fila_espera for all using (true)
 
 create policy "configuracoes: leitura publica" on configuracoes for select using (true);
 create policy "configuracoes: escrita publica" on configuracoes for all using (true) with check (true);
+
+-- alunos: só leitura (nunca é editada pelo app, só importada por SQL
+-- direto — ver observação na definição da tabela acima).
+create policy "alunos: leitura publica" on alunos for select using (true);
 
 -- professores: leitura, criação de conta e atualização de senha (usada
 -- pela coordenação para redefinir a senha de quem esqueceu — ver
