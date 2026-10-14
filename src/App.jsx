@@ -285,7 +285,7 @@ export default function App() {
         <div className="bg-rose-100 text-rose-800 text-sm px-4 py-2 text-center">{err}</div>
       )}
 
-      {view === "home" && <Home onNav={setView} totals={{ oficinas: oficinas.length, professores: new Set(oficinas.map(o => o.professor.toLowerCase())).size, inscricoes: inscricoes.length }} />}
+      {view === "home" && <Home onNav={setView} />}
 
       {view === "professor" && (
         <ProfessorPortal
@@ -343,7 +343,7 @@ export default function App() {
 }
 
 /* ---------------- HOME ---------------- */
-function Home({ onNav, totals }) {
+function Home({ onNav }) {
   return (
     <div className="bg-white text-slate-800">
       <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
@@ -378,13 +378,7 @@ function Home({ onNav, totals }) {
           </div>
         </TicketStub>
 
-        <div className="flex justify-center gap-8 mt-10 text-sm text-slate-500">
-          <div><span className="text-teal-600 font-bold">{totals.oficinas}</span> oficinas</div>
-          <div><span className="text-teal-600 font-bold">{totals.professores}</span> professores com oficina</div>
-          <div><span className="text-teal-600 font-bold">{totals.inscricoes}</span> inscrições</div>
-        </div>
-
-        <button onClick={() => onNav("admin")} className="mt-12 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+        <button onClick={() => onNav("admin")} className="mt-10 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
           <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
         </button>
       </div>
