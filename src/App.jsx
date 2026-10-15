@@ -465,7 +465,7 @@ function Home({ onNav }) {
             <BookOpen className="w-5 h-5" /> Ver Oficinas
           </button>
         </div>
-        <p className="max-w-xs mx-auto text-xs text-slate-400 mb-10">Veja a descrição de todas as oficinas antes de escolher a sua — sem precisar de matrícula.</p>
+        <p className="max-w-xs mx-auto text-xs text-slate-400 mb-10">Veja a descrição de todas as oficinas antes de escolher a sua.</p>
 
         <TicketStub>
           <div className="w-full max-w-sm mx-auto bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-6 py-4 rounded-sm text-left">
@@ -2190,8 +2190,6 @@ function VerOficinas({ onBack, oficinas, configCards }) {
     });
   const detalhe = disponiveis.find((o) => o.id === detalheId) || null;
 
-  const sessoesDe = (o) => [o.grupo67 && "3º horário", o.grupo89 && "5º horário"].filter(Boolean);
-
   return (
     <div>
       <BackBar onBack={onBack} title="Oficinas do Festival" />
@@ -2207,11 +2205,6 @@ function VerOficinas({ onBack, oficinas, configCards }) {
               onClick={() => setDetalheId(o.id)}
               className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
             >
-              <div className="flex flex-wrap gap-1">
-                {sessoesDe(o).map((s) => (
-                  <span key={s} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{s}</span>
-                ))}
-              </div>
               <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
               {configCards.mostrarProfessor && <span className="mt-auto text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
             </button>
@@ -2230,9 +2223,6 @@ function VerOficinas({ onBack, oficinas, configCards }) {
               </button>
             </div>
             <div className="flex flex-wrap gap-2 items-center mt-1.5">
-              {sessoesDe(detalhe).map((s) => (
-                <span key={s} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{s}</span>
-              ))}
               {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
               {configCards.mostrarAmbiente && <span className="text-xs text-slate-400">{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
             </div>
