@@ -77,21 +77,26 @@ create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 -- recalcula a ocupação DENTRO da transação do insert/update, travando a
 -- linha da oficina primeiro (for update) pra duas tentativas concorrentes
 -- pela mesma oficina serializarem em vez de passarem juntas.
+--
+-- As vagas de cada sessão (vagas_67/89) são divididas meio a meio entre
+-- as duas séries dela, pra uma série não lotar a oficina sozinha e
+-- deixar a outra sem vaga nenhuma. Quando o total é ímpar, a série com
+-- mais alunos no colégio fica com a vaga extra: 6º (283) > 7º (247);
+-- 9º (325) > 8º (305). Essa regra PRECISA ficar igual à função
+-- vagasPorSerie em src/App.jsx.
 create or replace function checar_vagas_inscricao() returns trigger as $$
 declare
-  v_grupo  text;
-  v_vagas  int4;
+  v_vagas_grupo int4;
+  v_metade int4;
+  v_resto int4;
+  v_vagas_serie int4;
   v_ocupadas int4;
 begin
   if new.oficina_id is null then
     return new;
   end if;
 
-  if new.serie in ('6º ano', '7º ano') then
-    v_grupo := '67';
-  elsif new.serie in ('8º ano', '9º ano') then
-    v_grupo := '89';
-  else
+  if new.serie not in ('6º ano', '7º ano', '8º ano', '9º ano') then
     return new; -- série não reconhecida: não é esse gatilho que valida isso
   end if;
 
@@ -100,26 +105,32 @@ begin
   -- concorrentes poderiam contar a mesma vaga livre e ambas passarem).
   perform 1 from oficinas where id = new.oficina_id for update;
 
-  if v_grupo = '67' then
-    select vagas_67 into v_vagas from oficinas where id = new.oficina_id;
+  if new.serie in ('6º ano', '7º ano') then
+    select vagas_67 into v_vagas_grupo from oficinas where id = new.oficina_id;
   else
-    select vagas_89 into v_vagas from oficinas where id = new.oficina_id;
+    select vagas_89 into v_vagas_grupo from oficinas where id = new.oficina_id;
   end if;
 
-  if v_vagas is null then
+  if v_vagas_grupo is null then
     return new; -- sem limite definido pra essa sessão: não trava
+  end if;
+
+  v_metade := v_vagas_grupo / 2; -- divisão inteira
+  v_resto := v_vagas_grupo % 2;
+
+  if new.serie in ('6º ano', '9º ano') then
+    v_vagas_serie := v_metade + v_resto;
+  else
+    v_vagas_serie := v_metade;
   end if;
 
   select count(*) into v_ocupadas
   from inscricoes i
   where i.oficina_id = new.oficina_id
     and i.matricula <> new.matricula
-    and (
-      (v_grupo = '67' and i.serie in ('6º ano', '7º ano')) or
-      (v_grupo = '89' and i.serie in ('8º ano', '9º ano'))
-    );
+    and i.serie = new.serie;
 
-  if v_ocupadas >= v_vagas then
+  if v_ocupadas >= v_vagas_serie then
     raise exception 'OFICINA_LOTADA' using errcode = 'P0001';
   end if;
 

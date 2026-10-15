@@ -54,6 +54,20 @@ function grupoPorSerie(serie) {
   if (serie === "8º ano" || serie === "9º ano") return "89";
   return null;
 }
+// Divide as vagas de uma sessão meio a meio entre as duas séries dela,
+// pra uma série não lotar a oficina sozinha e deixar a outra sem vaga
+// nenhuma. Quando o total é ímpar, a série com mais alunos no colégio
+// fica com a vaga extra (6º tem mais gente que 7º; 9º tem mais gente
+// que 8º) — replica a mesma regra do gatilho checar_vagas_inscricao no
+// banco (supabase/schema.sql), então as duas PRECISAM ficar iguais.
+function vagasPorSerie(vagasGrupo, serie) {
+  if (vagasGrupo == null) return null;
+  const metade = Math.floor(vagasGrupo / 2);
+  const resto = vagasGrupo % 2;
+  if (serie === "6º ano" || serie === "9º ano") return metade + resto;
+  if (serie === "7º ano" || serie === "8º ano") return metade;
+  return null;
+}
 // Quando o ambiente é "Sala a confirmar", a sala de verdade pro aluno é a
 // específica da SESSÃO dele (salaNumero67/89), não o rótulo genérico.
 function salaDaInscricao(oficina, serie) {
@@ -266,6 +280,8 @@ export default function App() {
 
   const vagasOcupadas = (oficinaId, grupo) =>
     inscricoes.filter((i) => i.oficinaId === oficinaId && (!grupo || grupoPorSerie(i.serie) === grupo)).length;
+  const vagasOcupadasPorSerie = (oficinaId, serie) =>
+    inscricoes.filter((i) => i.oficinaId === oficinaId && i.serie === serie).length;
 
   if (loading) {
     return (
@@ -328,6 +344,7 @@ export default function App() {
           saveConfiguracoes={saveConfiguracoes}
           alunos={alunos}
           vagasOcupadas={vagasOcupadas}
+          vagasOcupadasPorSerie={vagasOcupadasPorSerie}
           flash={flash}
         />
       )}
@@ -343,7 +360,7 @@ export default function App() {
           saveFilaEspera={saveFilaEspera}
           configCards={configCards}
           alunos={alunos}
-          vagasOcupadas={vagasOcupadas}
+          vagasOcupadasPorSerie={vagasOcupadasPorSerie}
           flash={flash}
         />
       )}
@@ -1048,7 +1065,7 @@ function AdminLogin({ onBack, onUnlock }) {
   );
 }
 
-function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configuracoes, saveConfiguracoes, alunos, vagasOcupadas, flash }) {
+function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes, inscricoes, saveInscricoes, filaEspera, saveFilaEspera, configuracoes, saveConfiguracoes, alunos, vagasOcupadas, vagasOcupadasPorSerie, flash }) {
   const [tab, setTab] = useState("dashboard");
   const [filtro, setFiltro] = useState("pendentes");
   // Com mais de mil inscritos, não faz sentido montar todos os comprovantes
@@ -1140,7 +1157,24 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             ) : (
               <div className="space-y-3">
                 {oficinasFiltradas.map((o) => (
-                  <AdminOficinaRow key={o.id} oficina={o} ambientes={ambientes} ocupadas67={vagasOcupadas(o.id, "67")} ocupadas89={vagasOcupadas(o.id, "89")} alocacaoCount67={alocacaoCount67} alocacaoCount89={alocacaoCount89} onUpdate={updateOficina} onRemove={removerOficina} flash={flash} />
+                  <AdminOficinaRow
+                    key={o.id}
+                    oficina={o}
+                    ambientes={ambientes}
+                    ocupadas67={vagasOcupadas(o.id, "67")}
+                    ocupadas89={vagasOcupadas(o.id, "89")}
+                    ocupadasPorSerie={{
+                      "6º ano": vagasOcupadasPorSerie(o.id, "6º ano"),
+                      "7º ano": vagasOcupadasPorSerie(o.id, "7º ano"),
+                      "8º ano": vagasOcupadasPorSerie(o.id, "8º ano"),
+                      "9º ano": vagasOcupadasPorSerie(o.id, "9º ano"),
+                    }}
+                    alocacaoCount67={alocacaoCount67}
+                    alocacaoCount89={alocacaoCount89}
+                    onUpdate={updateOficina}
+                    onRemove={removerOficina}
+                    flash={flash}
+                  />
                 ))}
                 {oficinasFiltradas.length === 0 && (
                   <p className="text-sm text-slate-400 text-center py-10">
@@ -1160,7 +1194,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <h3 className="font-serif font-bold text-indigo-950">Relatório de inscrições por oficina</h3>
               <p className="text-xs text-slate-500 mt-0.5">Clique numa oficina para ver os alunos inscritos e excluir alguma inscrição, se precisar.</p>
             </div>
-            <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadas={vagasOcupadas} flash={flash} />
+            <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadasPorSerie={vagasOcupadasPorSerie} flash={flash} />
 
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Lista de espera</h3>
@@ -1354,7 +1388,7 @@ function BarraVagas({ label, ocupadas, vagas }) {
   );
 }
 
-function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupadas, flash }) {
+function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupadasPorSerie, flash }) {
   const [abertaId, setAbertaId] = useState(null);
   const aprovadas = oficinas.filter((o) => o.status === "aprovada");
 
@@ -1380,8 +1414,10 @@ function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupad
                 <span className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expandida ? "rotate-180" : ""}`} />
               </div>
-              {o.grupo67 && <BarraVagas label="6º e 7º ano" ocupadas={vagasOcupadas(o.id, "67")} vagas={o.vagas67} />}
-              {o.grupo89 && <BarraVagas label="8º e 9º ano" ocupadas={vagasOcupadas(o.id, "89")} vagas={o.vagas89} />}
+              {o.grupo67 && <BarraVagas label="6º ano" ocupadas={vagasOcupadasPorSerie(o.id, "6º ano")} vagas={vagasPorSerie(o.vagas67, "6º ano")} />}
+              {o.grupo67 && <BarraVagas label="7º ano" ocupadas={vagasOcupadasPorSerie(o.id, "7º ano")} vagas={vagasPorSerie(o.vagas67, "7º ano")} />}
+              {o.grupo89 && <BarraVagas label="8º ano" ocupadas={vagasOcupadasPorSerie(o.id, "8º ano")} vagas={vagasPorSerie(o.vagas89, "8º ano")} />}
+              {o.grupo89 && <BarraVagas label="9º ano" ocupadas={vagasOcupadasPorSerie(o.id, "9º ano")} vagas={vagasPorSerie(o.vagas89, "9º ano")} />}
             </button>
             {expandida && (
               <div className="border-t border-stone-100 px-3 py-2">
@@ -1737,7 +1773,7 @@ function parseSalaNumero(texto) {
   return m ? { serie: m[1], turma: m[2] } : { serie: "", turma: "" };
 }
 
-function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoCount67, alocacaoCount89, onUpdate, onRemove, flash }) {
+function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasPorSerie, alocacaoCount67, alocacaoCount89, onUpdate, onRemove, flash }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
   const [grupo67, setGrupo67] = useState(oficina.grupo67);
@@ -1849,10 +1885,17 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
               6º e 7º ano
             </label>
             {grupo67 && (
-              <div className="mt-1.5 flex items-center gap-2">
-                <input type="number" min="0" value={vagas67 ?? ""} onChange={(e) => setVagas67(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
-                <span className="text-xs text-slate-500">vagas · {ocupadas67} inscritos</span>
-              </div>
+              <>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input type="number" min="0" value={vagas67 ?? ""} onChange={(e) => setVagas67(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                  <span className="text-xs text-slate-500">vagas · {ocupadas67} inscritos</span>
+                </div>
+                {vagas67 != null && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Dividido meio a meio: {ocupadasPorSerie["6º ano"]}/{vagasPorSerie(vagas67, "6º ano")} pro 6º ano · {ocupadasPorSerie["7º ano"]}/{vagasPorSerie(vagas67, "7º ano")} pro 7º ano
+                  </p>
+                )}
+              </>
             )}
           </div>
           <div className={`border rounded-lg p-2.5 ${grupo89 ? "border-stone-300" : "border-stone-200 opacity-60"}`}>
@@ -1861,10 +1904,17 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
               8º e 9º ano
             </label>
             {grupo89 && (
-              <div className="mt-1.5 flex items-center gap-2">
-                <input type="number" min="0" value={vagas89 ?? ""} onChange={(e) => setVagas89(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
-                <span className="text-xs text-slate-500">vagas · {ocupadas89} inscritos</span>
-              </div>
+              <>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input type="number" min="0" value={vagas89 ?? ""} onChange={(e) => setVagas89(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                  <span className="text-xs text-slate-500">vagas · {ocupadas89} inscritos</span>
+                </div>
+                {vagas89 != null && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Dividido meio a meio: {ocupadasPorSerie["8º ano"]}/{vagasPorSerie(vagas89, "8º ano")} pro 8º ano · {ocupadasPorSerie["9º ano"]}/{vagasPorSerie(vagas89, "9º ano")} pro 9º ano
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -2043,7 +2093,7 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 }
 
 /* ---------------- ALUNO ---------------- */
-function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInscricoes, filaEspera, saveFilaEspera, configCards, alunos, vagasOcupadas, flash }) {
+function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInscricoes, filaEspera, saveFilaEspera, configCards, alunos, vagasOcupadasPorSerie, flash }) {
   const [matricula, setMatricula] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
   const [serie, setSerie] = useState("");
@@ -2211,12 +2261,16 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
         <div className="grid grid-cols-2 gap-3">
           {disponiveis.map((o) => {
             const vagasGrupo = meuGrupo === "67" ? o.vagas67 : o.vagas89;
-            const ocupadas = vagasOcupadas(o.id, meuGrupo);
-            // vagasGrupo null/indefinido = a coordenação ainda não definiu um
+            // Vagas divididas meio a meio entre as duas séries da sessão
+            // (ver vagasPorSerie) — cada aluno só concorre com a própria
+            // série, pra uma delas não lotar a oficina sozinha.
+            const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+            const ocupadas = vagasOcupadasPorSerie(o.id, serie);
+            // vagasSerie null/indefinido = a coordenação ainda não definiu um
             // limite pra essa sessão — trata como sem limite (nunca cheia),
             // nunca como 0 vagas (senão toda oficina sem vagas preenchidas
             // nasceria travada, sem ninguém conseguir se inscrever).
-            const cheia = vagasGrupo != null && ocupadas >= vagasGrupo;
+            const cheia = vagasSerie != null && ocupadas >= vagasSerie;
             return (
               <button
                 key={o.id}
@@ -2227,7 +2281,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
                 {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
                 {configCards.mostrarVagas && (
                   <span className={`mt-auto self-start text-[11px] font-bold px-2 py-0.5 rounded-full ${cheia ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
-                    {ocupadas}/{vagasGrupo ?? "—"} vagas
+                    {ocupadas}/{vagasSerie ?? "—"} vagas
                   </span>
                 )}
               </button>
@@ -2239,8 +2293,9 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
 
       {detalhe && (() => {
         const vagasGrupo = meuGrupo === "67" ? detalhe.vagas67 : detalhe.vagas89;
-        const ocupadas = vagasOcupadas(detalhe.id, meuGrupo);
-        const cheia = vagasGrupo != null && ocupadas >= vagasGrupo;
+        const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+        const ocupadas = vagasOcupadasPorSerie(detalhe.id, serie);
+        const cheia = vagasSerie != null && ocupadas >= vagasSerie;
         const naFila = minhasFilas.some((f) => f.oficinaId === detalhe.id);
         return (
           <div className="fixed inset-0 bg-stone-900/45 flex items-end sm:items-center sm:justify-center z-50" onClick={() => setDetalheId(null)}>
@@ -2254,7 +2309,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
               <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1.5">
                 {configCards.mostrarProfessor && <span>{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
                 {configCards.mostrarAmbiente && <span>{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
-                {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasGrupo ?? "—"} vagas</span>}
+                {configCards.mostrarVagas && <span className={cheia ? "text-rose-500 font-semibold" : "text-emerald-600 font-semibold"}>{ocupadas}/{vagasSerie ?? "—"} vagas</span>}
               </div>
               <p className="text-sm text-slate-600 mt-3 leading-relaxed">{detalhe.descricao}</p>
               {configCards.mostrarMateriais && formatarMateriais(detalhe.materiais) && (
