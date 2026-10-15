@@ -376,9 +376,6 @@ function Home({ onNav }) {
         <img src={LOGO_SRC} alt="LiterArena — Festival de Literatura do Colégio Arena" className="h-32 sm:h-36 w-auto mx-auto mb-10" />
 
         <div className="grid gap-3 max-w-xs mx-auto mb-10">
-          <button onClick={() => onNav("professor")} className="flex items-center justify-center gap-2 bg-indigo-950 hover:bg-indigo-900 text-white font-bold py-3 rounded-lg transition">
-            <GraduationCap className="w-5 h-5" /> Sou Professor
-          </button>
           <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
             <Users className="w-5 h-5" /> Sou Aluno
           </button>
