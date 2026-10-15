@@ -51,6 +51,8 @@ const TABLES = {
       grupo_67: o.grupo67 ?? true,
       grupo_89: o.grupo89 ?? true,
       ambiente_alocado: o.ambienteAlocado ?? null,
+      sala_numero_67: o.salaNumero67 ?? null,
+      sala_numero_89: o.salaNumero89 ?? null,
       feedback: o.feedback ?? null,
       titulo_aprovado: o.tituloAprovado ?? true,
       descricao_aprovado: o.descricaoAprovado ?? true,
@@ -85,6 +87,8 @@ const TABLES = {
       grupo67: r.grupo_67 ?? true,
       grupo89: r.grupo_89 ?? true,
       ambienteAlocado: r.ambiente_alocado ?? "",
+      salaNumero67: r.sala_numero_67 ?? "",
+      salaNumero89: r.sala_numero_89 ?? "",
       feedback: r.feedback ?? "",
       // Se a coluna ainda não existir no banco, trata como já aprovado
       // pra não travar "Aprovar" de oficinas antigas por causa disso.

@@ -54,6 +54,15 @@ function grupoPorSerie(serie) {
   if (serie === "8º ano" || serie === "9º ano") return "89";
   return null;
 }
+// Quando o ambiente é "Sala a confirmar", a sala de verdade pro aluno é a
+// específica da SESSÃO dele (salaNumero67/89), não o rótulo genérico.
+function salaDaInscricao(oficina, serie) {
+  if (!oficina?.ambienteAlocado) return "";
+  if (oficina.ambienteAlocado !== AMBIENTE_SALA_PADRAO) return oficina.ambienteAlocado;
+  const grupo = grupoPorSerie(serie);
+  const sala = grupo === "67" ? oficina.salaNumero67 : grupo === "89" ? oficina.salaNumero89 : "";
+  return sala || oficina.ambienteAlocado;
+}
 // Verdadeiro enquanto a coordenação estiver esperando o PROFESSOR
 // confirmar título, descrição e/ou ambiente (quando algum foi
 // preenchido/definido por ela em nome dele).
@@ -111,7 +120,7 @@ function ComprovanteCard({ inscricao, oficina, id }) {
         <span className="text-indigo-400">Série/turma</span><span>{inscricao.serie} {inscricao.turma}</span>
         <span className="text-indigo-400">Data</span><span>23 de outubro, manhã</span>
         {oficina?.comprovanteMostrarHorario !== false && <><span className="text-indigo-400">Horário</span><span>{horarioPorSerie(inscricao.serie)}</span></>}
-        {oficina?.comprovanteMostrarLocal !== false && oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{oficina.ambienteAlocado}</span></>}
+        {oficina?.comprovanteMostrarLocal !== false && oficina?.ambienteAlocado && <><span className="text-indigo-400">Local</span><span>{salaDaInscricao(oficina, inscricao.serie)}</span></>}
       </div>
       {oficina?.comprovanteMostrarMateriais !== false && formatarMateriais(oficina?.materiais) && (
         <div className="border-t border-dashed border-indigo-700 pt-3 mt-3 text-sm text-left">
@@ -1059,14 +1068,18 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
 
   // Conflito de sala só existe dentro da MESMA sessão (6º/7º e 8º/9º
   // acontecem em horários diferentes, então a mesma sala serve as duas
-  // sem problema) — por isso a contagem é separada por grupo.
+  // sem problema) — por isso a contagem é separada por grupo. Quando o
+  // ambiente é "Sala a confirmar", a sala de verdade é a específica
+  // dessa sessão (salaNumero67/89), não o rótulo genérico — por isso o
+  // conflito é contado por ela, não por "Sala a confirmar" em si.
   const alocacaoCount67 = {};
   const alocacaoCount89 = {};
   oficinas.forEach((o) => {
-    if (o.status === "aprovada" && o.ambienteAlocado) {
-      if (o.grupo67) alocacaoCount67[o.ambienteAlocado] = (alocacaoCount67[o.ambienteAlocado] || 0) + 1;
-      if (o.grupo89) alocacaoCount89[o.ambienteAlocado] = (alocacaoCount89[o.ambienteAlocado] || 0) + 1;
-    }
+    if (o.status !== "aprovada") return;
+    const chave67 = o.ambienteAlocado === AMBIENTE_SALA_PADRAO ? o.salaNumero67 : o.ambienteAlocado;
+    const chave89 = o.ambienteAlocado === AMBIENTE_SALA_PADRAO ? o.salaNumero89 : o.ambienteAlocado;
+    if (o.grupo67 && chave67) alocacaoCount67[chave67] = (alocacaoCount67[chave67] || 0) + 1;
+    if (o.grupo89 && chave89) alocacaoCount89[chave89] = (alocacaoCount89[chave89] || 0) + 1;
   });
 
   async function updateOficina(id, changes) {
@@ -1717,6 +1730,13 @@ function AdminCriarOficina({ saveOficinas, oficinas, ambientes, flash }) {
   );
 }
 
+// "Sala do 8º ano A" <-> { serie: "8º ano", turma: "A" }, pra alimentar os
+// dois seletores da sala específica de cada sessão.
+function parseSalaNumero(texto) {
+  const m = /^Sala do ((?:6|7|8|9)º ano) ([A-H])$/.exec(texto || "");
+  return m ? { serie: m[1], turma: m[2] } : { serie: "", turma: "" };
+}
+
 function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoCount67, alocacaoCount89, onUpdate, onRemove, flash }) {
   const [nome, setNome] = useState(oficina.nome);
   const [descricao, setDescricao] = useState(oficina.descricao);
@@ -1725,27 +1745,41 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
   const [vagas67, setVagas67] = useState(oficina.vagas67);
   const [vagas89, setVagas89] = useState(oficina.vagas89);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
+  const [serieSala67, setSerieSala67] = useState(() => parseSalaNumero(oficina.salaNumero67).serie);
+  const [turmaSala67, setTurmaSala67] = useState(() => parseSalaNumero(oficina.salaNumero67).turma);
+  const [serieSala89, setSerieSala89] = useState(() => parseSalaNumero(oficina.salaNumero89).serie);
+  const [turmaSala89, setTurmaSala89] = useState(() => parseSalaNumero(oficina.salaNumero89).turma);
   const [materiais, setMateriais] = useState(parseMateriais(oficina.materiais));
   const [salvando, setSalvando] = useState(null);
 
-  const mesmoAmbienteAtual = ambienteAlocado === oficina.ambienteAlocado && oficina.status === "aprovada";
-  const outrasNesseAmbiente67 = mesmoAmbienteAtual && oficina.grupo67
-    ? (alocacaoCount67[ambienteAlocado] || 0) - 1
-    : (alocacaoCount67[ambienteAlocado] || 0);
-  const outrasNesseAmbiente89 = mesmoAmbienteAtual && oficina.grupo89
-    ? (alocacaoCount89[ambienteAlocado] || 0) - 1
-    : (alocacaoCount89[ambienteAlocado] || 0);
-  // "Sala a confirmar" não é um espaço único (a escola tem várias salas
-  // comuns) — nunca é conflito. E como as sessões do 6º/7º e do 8º/9º ano
-  // acontecem em horários diferentes, só é conflito de verdade quando
-  // outra oficina usa a mesma sala NA MESMA sessão.
-  const ehSalaEspecifica = ambienteAlocado && ambienteAlocado !== AMBIENTE_SALA_PADRAO;
-  const conflito67 = ehSalaEspecifica && grupo67 && outrasNesseAmbiente67 > 0;
-  const conflito89 = ehSalaEspecifica && grupo89 && outrasNesseAmbiente89 > 0;
+  // Quando "Ambiente alocado" é "Sala a confirmar", a sala de verdade de
+  // cada sessão é a específica (ex.: "Sala do 8º ano A") — por isso o
+  // conflito é contado por ela, não pelo rótulo genérico. Senão (um
+  // ambiente nomeado, tipo Biblioteca), é a mesma sala nas duas sessões,
+  // como sempre foi.
+  const salaEspecifica = ambienteAlocado === AMBIENTE_SALA_PADRAO;
+  const chaveAtual67 = salaEspecifica ? (serieSala67 && turmaSala67 ? `Sala do ${serieSala67} ${turmaSala67}` : "") : ambienteAlocado;
+  const chaveAtual89 = salaEspecifica ? (serieSala89 && turmaSala89 ? `Sala do ${serieSala89} ${turmaSala89}` : "") : ambienteAlocado;
+  const chaveSalva67 = oficina.ambienteAlocado === AMBIENTE_SALA_PADRAO ? oficina.salaNumero67 : oficina.ambienteAlocado;
+  const chaveSalva89 = oficina.ambienteAlocado === AMBIENTE_SALA_PADRAO ? oficina.salaNumero89 : oficina.ambienteAlocado;
+  const outrasNesseAmbiente67 = chaveAtual67 && chaveAtual67 === chaveSalva67 && oficina.status === "aprovada" && oficina.grupo67
+    ? (alocacaoCount67[chaveAtual67] || 0) - 1
+    : (chaveAtual67 ? (alocacaoCount67[chaveAtual67] || 0) : 0);
+  const outrasNesseAmbiente89 = chaveAtual89 && chaveAtual89 === chaveSalva89 && oficina.status === "aprovada" && oficina.grupo89
+    ? (alocacaoCount89[chaveAtual89] || 0) - 1
+    : (chaveAtual89 ? (alocacaoCount89[chaveAtual89] || 0) : 0);
+  const conflito67 = !!chaveAtual67 && grupo67 && outrasNesseAmbiente67 > 0;
+  const conflito89 = !!chaveAtual89 && grupo89 && outrasNesseAmbiente89 > 0;
   const conflito = conflito67 || conflito89;
   const editValido = nome.trim() && descricao.trim();
   const ambientePendente = oficina.ambienteAlocado && !oficina.ambienteAprovado;
   const aguardandoConfirmacao = precisaConfirmacaoDoProfessor(oficina);
+  // Só manda a sala específica quando o ambiente é mesmo "Sala a
+  // confirmar" — trocando pra um ambiente nomeado, limpa as duas (senão
+  // ficaria uma sala específica "fantasma" guardada sem aparecer em
+  // lugar nenhum).
+  const salaNumero67 = salaEspecifica ? (serieSala67 && turmaSala67 ? `Sala do ${serieSala67} ${turmaSala67}` : null) : null;
+  const salaNumero89 = salaEspecifica ? (serieSala89 && turmaSala89 ? `Sala do ${serieSala89} ${turmaSala89}` : null) : null;
 
   async function salvarTexto(changes, acao, mensagemSucesso) {
     const mudouAmbiente = "ambienteAlocado" in changes && changes.ambienteAlocado !== oficina.ambienteAlocado;
@@ -1754,6 +1788,8 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
       nome: nome.trim(),
       descricao: descricao.trim(),
       materiais: JSON.stringify(materiais.filter((m) => m.item.trim())),
+      salaNumero67,
+      salaNumero89,
       ...changes,
       ...(changes.status === "aprovada"
         ? { ambienteAprovado: true }
@@ -1847,11 +1883,49 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, alocacaoC
           </select>
           {conflito && (
             <p className="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> Esse espaço já foi alocado para outra oficina aprovada {conflito67 && conflito89 ? "nas duas sessões" : conflito67 ? "na sessão do 6º/7º ano" : "na sessão do 8º/9º ano"}.
+              <AlertTriangle className="w-3.5 h-3.5" /> Essa sala já foi alocada para outra oficina aprovada {conflito67 && conflito89 ? "nas duas sessões" : conflito67 ? "na sessão do 6º/7º ano" : "na sessão do 8º/9º ano"}.
             </p>
           )}
         </Field>
       </div>
+
+      {salaEspecifica && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Qual sala, em cada sessão (as sessões acontecem em horários diferentes, então dá pra usar a sala de uma turma que não está em aula nesse horário)</p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {grupo67 && (
+              <div className={`border rounded-lg p-2.5 ${conflito67 ? "border-rose-300" : "border-stone-200"}`}>
+                <label className="text-xs font-medium text-slate-600 block mb-1">6º e 7º ano</label>
+                <div className="flex gap-1.5">
+                  <select value={serieSala67} onChange={(e) => setSerieSala67(e.target.value)} className="input">
+                    <option value="">Série…</option>
+                    {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={turmaSala67} onChange={(e) => setTurmaSala67(e.target.value)} className="input" style={{ width: "4.5rem" }}>
+                    <option value="">—</option>
+                    {TURMAS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+            {grupo89 && (
+              <div className={`border rounded-lg p-2.5 ${conflito89 ? "border-rose-300" : "border-stone-200"}`}>
+                <label className="text-xs font-medium text-slate-600 block mb-1">8º e 9º ano</label>
+                <div className="flex gap-1.5">
+                  <select value={serieSala89} onChange={(e) => setSerieSala89(e.target.value)} className="input">
+                    <option value="">Série…</option>
+                    {SERIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={turmaSala89} onChange={(e) => setTurmaSala89(e.target.value)} className="input" style={{ width: "4.5rem" }}>
+                    <option value="">—</option>
+                    {TURMAS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mt-3">
         <button

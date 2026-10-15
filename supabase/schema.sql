@@ -35,6 +35,13 @@ create table if not exists oficinas (
   grupo_67          boolean not null default true,  -- oficina oferecida na sessão do 6º/7º ano
   grupo_89          boolean not null default true,  -- oficina oferecida na sessão do 8º/9º ano
   ambiente_alocado  text,   -- guarda o NOME do ambiente escolhido (não o id — ver src/App.jsx)
+  -- Quando ambiente_alocado = "Sala a confirmar", guarda qual sala de
+  -- aula comum vai ser usada em CADA sessão (ex.: "Sala do 8º ano A"
+  -- pro 6º/7º, "Sala do 6º ano C" pro 8º/9º) — as duas sessões
+  -- acontecem em horários diferentes, então dá pra usar a sala de uma
+  -- turma que não está em aula nesse horário.
+  sala_numero_67    text,
+  sala_numero_89    text,
   feedback          text,
   titulo_aprovado     boolean not null default true,  -- false quando a coordenação cadastra em nome do professor
   descricao_aprovado  boolean not null default true,
