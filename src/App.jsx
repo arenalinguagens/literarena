@@ -412,6 +412,10 @@ export default function App() {
           flash={flash}
         />
       )}
+
+      {view === "oficinas" && (
+        <VerOficinas onBack={() => setView("home")} oficinas={oficinas} configCards={configCards} />
+      )}
     </div>
   );
 }
@@ -453,11 +457,15 @@ function Home({ onNav }) {
           </div>
         </div>
 
-        <div className="grid gap-3 max-w-xs mx-auto mb-10">
+        <div className="grid gap-3 max-w-xs mx-auto mb-3">
           <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
             <Users className="w-5 h-5" /> Sou Aluno
           </button>
+          <button onClick={() => onNav("oficinas")} className="flex items-center justify-center gap-2 bg-white hover:bg-indigo-50 text-indigo-950 font-bold py-2.5 rounded-lg border-2 border-indigo-950 transition">
+            <BookOpen className="w-5 h-5" /> Ver Oficinas
+          </button>
         </div>
+        <p className="max-w-xs mx-auto text-xs text-slate-400 mb-10">Veja a descrição de todas as oficinas antes de escolher a sua — sem precisar de matrícula.</p>
 
         <TicketStub>
           <div className="w-full max-w-sm mx-auto bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-6 py-4 rounded-sm text-left">
@@ -2162,6 +2170,84 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
         </ul>
       ) : (
         <p className="mt-1 text-xs text-slate-400">Nenhuma oficina usando este ambiente.</p>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- VER OFICINAS (sem login, só descrição) ---------------- */
+function VerOficinas({ onBack, oficinas, configCards }) {
+  const [detalheId, setDetalheId] = useState(null);
+
+  const disponiveis = oficinas
+    .filter((o) => o.status === "aprovada")
+    .slice()
+    .sort((a, b) => {
+      if (a.ordem != null && b.ordem != null) return a.ordem - b.ordem;
+      if (a.ordem != null) return -1;
+      if (b.ordem != null) return 1;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
+  const detalhe = disponiveis.find((o) => o.id === detalheId) || null;
+
+  const sessoesDe = (o) => [o.grupo67 && "3º horário", o.grupo89 && "5º horário"].filter(Boolean);
+
+  return (
+    <div>
+      <BackBar onBack={onBack} title="Oficinas do Festival" />
+      <div className="max-w-2xl mx-auto px-5 py-6">
+        <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+          Dá uma olhada nas oficinas antes de escolher a sua. Pra se inscrever de verdade, entre com sua matrícula em <strong className="text-slate-700">Sou Aluno</strong>.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          {disponiveis.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setDetalheId(o.id)}
+              className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
+            >
+              <div className="flex flex-wrap gap-1">
+                {sessoesDe(o).map((s) => (
+                  <span key={s} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{s}</span>
+                ))}
+              </div>
+              <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
+              {configCards.mostrarProfessor && <span className="mt-auto text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
+            </button>
+          ))}
+          {disponiveis.length === 0 && <p className="col-span-2 text-sm text-slate-400 text-center py-10">Nenhuma oficina aprovada disponível ainda. Volte mais tarde.</p>}
+        </div>
+      </div>
+
+      {detalhe && (
+        <div className="fixed inset-0 bg-stone-900/45 flex items-end sm:items-center sm:justify-center z-50" onClick={() => setDetalheId(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-serif font-bold text-xl text-indigo-950">{detalhe.nome}</h2>
+              <button onClick={() => setDetalheId(null)} className="shrink-0 w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center">
+                <X className="w-3.5 h-3.5 text-stone-600" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 items-center mt-1.5">
+              {sessoesDe(detalhe).map((s) => (
+                <span key={s} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{s}</span>
+              ))}
+              {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
+              {configCards.mostrarAmbiente && <span className="text-xs text-slate-400">{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
+            </div>
+            <p className="text-sm text-slate-600 mt-3 leading-relaxed">{detalhe.descricao}</p>
+            {configCards.mostrarMateriais && formatarMateriais(detalhe.materiais) && (
+              <p className="text-xs text-slate-400 mt-2"><strong className="text-slate-500">Leve:</strong> {formatarMateriais(detalhe.materiais)}</p>
+            )}
+            <button
+              onClick={onBack}
+              className="w-full mt-4 text-sm font-semibold bg-amber-400 hover:bg-amber-300 text-indigo-950 py-2.5 rounded-lg"
+            >
+              Quero me inscrever nessa
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
