@@ -100,6 +100,16 @@ begin
     return new; -- série não reconhecida: não é esse gatilho que valida isso
   end if;
 
+  -- Cada sessão só libera inscrição a partir da própria data/horário —
+  -- a tela já impede isso, isso aqui é só reforço caso alguém tente
+  -- gravar direto sem passar pela tela. PRECISA ficar igual a
+  -- ABERTURA_INSCRICOES em src/App.jsx.
+  if new.serie in ('6º ano', '7º ano') and now() < timestamptz '2026-10-16 14:00:00-03' then
+    raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
+  elsif new.serie in ('8º ano', '9º ano') and now() < timestamptz '2026-10-19 14:00:00-03' then
+    raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
+  end if;
+
   -- Trava a linha da oficina: concorrentes pela MESMA oficina esperam
   -- aqui, serializando a contagem abaixo (sem isso, duas transações
   -- concorrentes poderiam contar a mesma vaga livre e ambas passarem).

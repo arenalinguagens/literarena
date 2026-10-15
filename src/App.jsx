@@ -41,6 +41,24 @@ const TURMAS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 // Valor de "ambienteAlocado" pra oficina que vai numa sala comum, mas cuja
 // sala específica a coordenação ainda vai definir depois.
 const AMBIENTE_SALA_PADRAO = "Sala a confirmar";
+// Cada sessão só libera inscrição a partir da própria data/horário —
+// evita que todo mundo tente se inscrever ao mesmo tempo. Horário de
+// Brasília fixo (-03:00), já que o Brasil não tem mais horário de
+// verão. PRECISA ficar igual ao gatilho checar_vagas_inscricao no
+// banco (supabase/schema.sql).
+const ABERTURA_INSCRICOES = {
+  "67": new Date("2026-10-16T14:00:00-03:00"),
+  "89": new Date("2026-10-19T14:00:00-03:00"),
+};
+// Formata dia/hora sempre no horário de Brasília, não no fuso do
+// dispositivo de quem está vendo — um aluno com o fuso do celular errado
+// não pode ver um horário de abertura diferente do real.
+function formatarAberturaBR(data) {
+  return {
+    dia: new Intl.DateTimeFormat("pt-BR", { day: "numeric", timeZone: "America/Sao_Paulo" }).format(data),
+    hora: new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(data),
+  };
+}
 function horarioPorSerie(serie) {
   if (serie === "6º ano" || serie === "7º ano") return "3º horário";
   if (serie === "8º ano" || serie === "9º ano") return "5º horário";
@@ -374,6 +392,26 @@ function Home({ onNav }) {
     <div className="bg-white text-slate-800">
       <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
         <img src={LOGO_SRC} alt="LiterArena — Festival de Literatura do Colégio Arena" className="h-32 sm:h-36 w-auto mx-auto mb-10" />
+
+        <div className="max-w-xs mx-auto mb-6 bg-indigo-950 text-white rounded-2xl px-5 py-4">
+          <p className="text-[11px] uppercase tracking-wide text-amber-300 font-bold mb-3 text-center">Inscrições abrem em</p>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">16</div>
+              <div className="text-left">
+                <p className="font-semibold text-sm leading-tight">6º e 7º ano</p>
+                <p className="text-indigo-300 text-xs">a partir das 14h</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">19</div>
+              <div className="text-left">
+                <p className="font-semibold text-sm leading-tight">8º e 9º ano</p>
+                <p className="text-indigo-300 text-xs">a partir das 14h</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-3 max-w-xs mx-auto mb-10">
           <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
@@ -2189,6 +2227,29 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
   }
 
   const meuGrupo = grupoPorSerie(serie);
+
+  // Cada sessão só libera a partir da própria data/horário — se o aluno já
+  // tem inscrição (caso raro, feita antes de mudar a regra), deixa ver o
+  // comprovante normalmente; só bloqueia quem ainda vai escolher.
+  const abreEm = meuGrupo ? ABERTURA_INSCRICOES[meuGrupo] : null;
+  if (!minhaInscricao && abreEm && Date.now() < abreEm.getTime()) {
+    const { dia, hora } = formatarAberturaBR(abreEm);
+    return (
+      <div>
+        <BackBar onBack={onBack} title="Escolher Oficina" />
+        <div className="max-w-sm mx-auto px-6 py-16 text-center">
+          <Clock className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
+          <p className="text-slate-700 font-semibold mb-1">
+            As inscrições do {meuGrupo === "67" ? "6º e 7º ano" : "8º e 9º ano"} ainda não abriram.
+          </p>
+          <p className="text-slate-500 text-sm">
+            Volte dia {dia} de outubro, a partir das {hora}h.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const disponiveis = oficinas
     .filter((o) => o.status === "aprovada" && (meuGrupo === "67" ? o.grupo67 : o.grupo89))
     .slice()
@@ -2335,7 +2396,9 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
                     setProcessando(true);
                     const ok = await saveInscricoes(
                       [...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, timestamp: Date.now() }],
-                      (e) => (e?.code === "P0001" || /OFICINA_LOTADA/i.test(e?.message || ""))
+                      (e) => /INSCRICOES_AINDA_NAO_ABRIRAM/i.test(e?.message || "")
+                        ? "As inscrições da sua série ainda não abriram."
+                        : (e?.code === "P0001" || /OFICINA_LOTADA/i.test(e?.message || ""))
                         ? "Essa vaga acabou de ser preenchida por outro aluno. Escolha outra oficina."
                         : null
                     );
