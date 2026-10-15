@@ -17,12 +17,15 @@ function colunaAusente(error) {
 }
 
 // Descobre QUAL coluna especificamente está faltando, a partir da mensagem
-// de erro (formatos diferentes entre PostgREST e Postgres cru).
+// de erro (formatos diferentes entre PostgREST e Postgres cru). Precisa
+// aceitar dígitos no nome (ex.: "vagas_67", "sala_numero_89") — sem isso,
+// o nome extraído fica truncado, o retry nunca remove a coluna certa, e
+// o salvamento falha mesmo tentando de novo.
 function extrairNomeColuna(error) {
   const msg = error?.message || "";
-  let m = msg.match(/'([a-zA-Z_]+)'\s+column/i);
+  let m = msg.match(/'([a-zA-Z0-9_]+)'\s+column/i);
   if (m) return m[1];
-  m = msg.match(/column\s+"?([a-zA-Z_.]+)"?\s+(of|does not exist)/i);
+  m = msg.match(/column\s+"?([a-zA-Z0-9_.]+)"?\s+(of|does not exist)/i);
   if (m) return m[1].split(".").pop();
   return null;
 }
