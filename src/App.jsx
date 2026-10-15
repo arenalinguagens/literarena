@@ -47,8 +47,8 @@ const AMBIENTE_SALA_PADRAO = "Sala a confirmar";
 // verão. PRECISA ficar igual ao gatilho checar_vagas_inscricao no
 // banco (supabase/schema.sql).
 const ABERTURA_INSCRICOES = {
-  "67": new Date("2026-10-16T14:00:00-03:00"),
-  "89": new Date("2026-10-19T14:00:00-03:00"),
+  "67": new Date("2026-10-16T16:30:00-03:00"),
+  "89": new Date("2026-10-19T16:30:00-03:00"),
 };
 // Matrícula de demonstração (cadastrada pela coordenação na tabela
 // "alunos", nome "Amostra") — não fica presa à data de abertura, pra
@@ -60,9 +60,13 @@ const MATRICULA_AMOSTRA = "0000";
 // dispositivo de quem está vendo — um aluno com o fuso do celular errado
 // não pode ver um horário de abertura diferente do real.
 function formatarAberturaBR(data) {
+  const partes = new Intl.DateTimeFormat("pt-BR", { day: "numeric", hour: "numeric", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).formatToParts(data);
+  const pega = (tipo) => partes.find((p) => p.type === tipo)?.value;
+  const hora = pega("hour");
+  const minuto = pega("minute");
   return {
-    dia: new Intl.DateTimeFormat("pt-BR", { day: "numeric", timeZone: "America/Sao_Paulo" }).format(data),
-    hora: new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(data),
+    dia: pega("day"),
+    hora: minuto === "00" ? `${hora}h` : `${hora}h${minuto}`,
   };
 }
 // Contagem regressiva até a abertura (dias/horas/minutos/segundos — só
@@ -431,7 +435,7 @@ function Home({ onNav }) {
                 <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">16</div>
                 <div className="text-left">
                   <p className="font-semibold text-sm leading-tight">6º e 7º ano</p>
-                  <p className="text-indigo-300 text-xs">a partir das 14h</p>
+                  <p className="text-indigo-300 text-xs">a partir das 16h30</p>
                 </div>
               </div>
               <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
@@ -443,7 +447,7 @@ function Home({ onNav }) {
                 <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">19</div>
                 <div className="text-left">
                   <p className="font-semibold text-sm leading-tight">8º e 9º ano</p>
-                  <p className="text-indigo-300 text-xs">a partir das 14h</p>
+                  <p className="text-indigo-300 text-xs">a partir das 16h30</p>
                 </div>
               </div>
               <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
@@ -2283,7 +2287,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
             As inscrições do {meuGrupo === "67" ? "6º e 7º ano" : "8º e 9º ano"} ainda não abriram.
           </p>
           <p className="text-slate-500 text-sm">
-            Volte dia {dia} de outubro, a partir das {hora}h.
+            Volte dia {dia} de outubro, a partir das {hora}.
           </p>
         </div>
       </div>
