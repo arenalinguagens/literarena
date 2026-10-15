@@ -50,6 +50,12 @@ const ABERTURA_INSCRICOES = {
   "67": new Date("2026-10-16T14:00:00-03:00"),
   "89": new Date("2026-10-19T14:00:00-03:00"),
 };
+// Matrícula de demonstração (cadastrada pela coordenação na tabela
+// "alunos", nome "Amostra") — não fica presa à data de abertura, pra
+// professor conseguir mostrar o processo de inscrição em sala antes da
+// janela abrir pra valer. PRECISA ficar igual ao gatilho
+// checar_vagas_inscricao no banco (supabase/schema.sql).
+const MATRICULA_AMOSTRA = "0000";
 // Formata dia/hora sempre no horário de Brasília, não no fuso do
 // dispositivo de quem está vendo — um aluno com o fuso do celular errado
 // não pode ver um horário de abertura diferente do real.
@@ -2266,7 +2272,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
   // tem inscrição (caso raro, feita antes de mudar a regra), deixa ver o
   // comprovante normalmente; só bloqueia quem ainda vai escolher.
   const abreEm = meuGrupo ? ABERTURA_INSCRICOES[meuGrupo] : null;
-  if (!minhaInscricao && abreEm && Date.now() < abreEm.getTime()) {
+  if (!minhaInscricao && matricula !== MATRICULA_AMOSTRA && abreEm && Date.now() < abreEm.getTime()) {
     const { dia, hora } = formatarAberturaBR(abreEm);
     return (
       <div>
