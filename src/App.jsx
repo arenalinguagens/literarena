@@ -41,14 +41,16 @@ const TURMAS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 // Valor de "ambienteAlocado" pra oficina que vai numa sala comum, mas cuja
 // sala específica a coordenação ainda vai definir depois.
 const AMBIENTE_SALA_PADRAO = "Sala a confirmar";
-// Cada sessão só libera inscrição a partir da própria data/horário —
+// Cada série só libera inscrição a partir da própria data/horário —
 // evita que todo mundo tente se inscrever ao mesmo tempo. Horário de
 // Brasília fixo (-03:00), já que o Brasil não tem mais horário de
 // verão. PRECISA ficar igual ao gatilho checar_vagas_inscricao no
 // banco (supabase/schema.sql).
 const ABERTURA_INSCRICOES = {
-  "67": new Date("2026-10-16T16:30:00-03:00"),
-  "89": new Date("2026-10-19T16:30:00-03:00"),
+  "6º ano": new Date("2026-10-19T14:00:00-03:00"),
+  "7º ano": new Date("2026-10-19T16:00:00-03:00"),
+  "8º ano": new Date("2026-10-20T14:00:00-03:00"),
+  "9º ano": new Date("2026-10-20T16:00:00-03:00"),
 };
 // Matrícula de demonstração (cadastrada pela coordenação na tabela
 // "alunos", nome "Amostra") — não fica presa à data de abertura, pra
@@ -430,30 +432,24 @@ function Home({ onNav }) {
         <div className="max-w-xs mx-auto mb-6 bg-indigo-950 text-white rounded-2xl px-5 py-4">
           <p className="text-[11px] uppercase tracking-wide text-amber-300 font-bold mb-3 text-center">Inscrições abrem em</p>
           <div className="space-y-3">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">16</div>
-                <div className="text-left">
-                  <p className="font-semibold text-sm leading-tight">6º e 7º ano</p>
-                  <p className="text-indigo-300 text-xs">a partir das 16h30</p>
+            {Object.keys(ABERTURA_INSCRICOES).map((serie) => {
+              const alvo = ABERTURA_INSCRICOES[serie];
+              const { dia, hora } = formatarAberturaBR(alvo);
+              return (
+                <div key={serie}>
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">{dia}</div>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm leading-tight">{serie}</p>
+                      <p className="text-indigo-300 text-xs">a partir das {hora}</p>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
+                    <p className="text-amber-200 text-xs font-bold tabular-nums">{formatarContagem(alvo, agora)}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
-                <p className="text-amber-200 text-xs font-bold tabular-nums">{formatarContagem(ABERTURA_INSCRICOES["67"], agora)}</p>
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">19</div>
-                <div className="text-left">
-                  <p className="font-semibold text-sm leading-tight">8º e 9º ano</p>
-                  <p className="text-indigo-300 text-xs">a partir das 16h30</p>
-                </div>
-              </div>
-              <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
-                <p className="text-amber-200 text-xs font-bold tabular-nums">{formatarContagem(ABERTURA_INSCRICOES["89"], agora)}</p>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
@@ -2272,10 +2268,10 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
 
   const meuGrupo = grupoPorSerie(serie);
 
-  // Cada sessão só libera a partir da própria data/horário — se o aluno já
+  // Cada série só libera a partir da própria data/horário — se o aluno já
   // tem inscrição (caso raro, feita antes de mudar a regra), deixa ver o
   // comprovante normalmente; só bloqueia quem ainda vai escolher.
-  const abreEm = meuGrupo ? ABERTURA_INSCRICOES[meuGrupo] : null;
+  const abreEm = ABERTURA_INSCRICOES[serie] || null;
   if (!minhaInscricao && matricula !== MATRICULA_AMOSTRA && abreEm && Date.now() < abreEm.getTime()) {
     const { dia, hora } = formatarAberturaBR(abreEm);
     return (
@@ -2284,7 +2280,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
         <div className="max-w-sm mx-auto px-6 py-16 text-center">
           <Clock className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
           <p className="text-slate-700 font-semibold mb-1">
-            As inscrições do {meuGrupo === "67" ? "6º e 7º ano" : "8º e 9º ano"} ainda não abriram.
+            As inscrições do {serie} ainda não abriram.
           </p>
           <p className="text-slate-500 text-sm">
             Volte dia {dia} de outubro, a partir das {hora}.

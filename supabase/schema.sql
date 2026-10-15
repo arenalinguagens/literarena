@@ -100,16 +100,20 @@ begin
     return new; -- série não reconhecida: não é esse gatilho que valida isso
   end if;
 
-  -- Cada sessão só libera inscrição a partir da própria data/horário —
+  -- Cada série só libera inscrição a partir da própria data/horário —
   -- a tela já impede isso, isso aqui é só reforço caso alguém tente
   -- gravar direto sem passar pela tela. PRECISA ficar igual a
   -- ABERTURA_INSCRICOES em src/App.jsx. Matrícula 0000 (aluno de
   -- amostra, usado por professor pra demonstrar em sala) fica de fora
   -- dessa trava — ver MATRICULA_AMOSTRA em src/App.jsx.
   if new.matricula <> '0000' then
-    if new.serie in ('6º ano', '7º ano') and now() < timestamptz '2026-10-16 16:30:00-03' then
+    if new.serie = '6º ano' and now() < timestamptz '2026-10-19 14:00:00-03' then
       raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
-    elsif new.serie in ('8º ano', '9º ano') and now() < timestamptz '2026-10-19 16:30:00-03' then
+    elsif new.serie = '7º ano' and now() < timestamptz '2026-10-19 16:00:00-03' then
+      raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
+    elsif new.serie = '8º ano' and now() < timestamptz '2026-10-20 14:00:00-03' then
+      raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
+    elsif new.serie = '9º ano' and now() < timestamptz '2026-10-20 16:00:00-03' then
       raise exception 'INSCRICOES_AINDA_NAO_ABRIRAM' using errcode = 'P0001';
     end if;
   end if;
