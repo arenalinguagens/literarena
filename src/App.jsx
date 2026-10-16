@@ -2230,12 +2230,6 @@ function VerOficinas({ onBack, oficinas, configCards }) {
             {configCards.mostrarMateriais && formatarMateriais(detalhe.materiais) && (
               <p className="text-xs text-slate-400 mt-2"><strong className="text-slate-500">Leve:</strong> {formatarMateriais(detalhe.materiais)}</p>
             )}
-            <button
-              onClick={onBack}
-              className="w-full mt-4 text-sm font-semibold bg-amber-400 hover:bg-amber-300 text-indigo-950 py-2.5 rounded-lg"
-            >
-              Quero me inscrever nessa
-            </button>
           </div>
         </div>
       )}
