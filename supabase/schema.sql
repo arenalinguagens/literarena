@@ -208,6 +208,19 @@ create table if not exists professores (
   created_at        timestamptz not null default now()
 );
 
+-- coordenacao_auth: senha da Área Restrita (coordenação), guardada como
+-- salt + hash (nunca texto puro) — ver src/lib/auth.js. Antes ficava
+-- escrita direto no código do app (SENHA_COORDENACAO em src/App.jsx),
+-- visível pra qualquer um que abrisse "Ver código-fonte" da página.
+-- Só tem uma linha, chave fixa "coordenacao". Pra trocar a senha, rode
+-- um UPDATE aqui direto — não existe tela no app pra isso de propósito
+-- (ver policy abaixo: sem insert/update/delete liberados pro app).
+create table if not exists coordenacao_auth (
+  chave       text primary key,
+  salt        text not null,
+  senha_hash  text not null
+);
+
 -- RLS: o app hoje não tem autenticação de servidor (login é feito no
 -- navegador comparando hashes), então as policies abaixo liberam
 -- leitura/escrita para a chave "anon". Isso é adequado para uso interno
@@ -222,6 +235,7 @@ alter table professores enable row level security;
 alter table fila_espera enable row level security;
 alter table configuracoes enable row level security;
 alter table alunos enable row level security;
+alter table coordenacao_auth enable row level security;
 
 create policy "ambientes: leitura publica" on ambientes for select using (true);
 create policy "ambientes: escrita publica" on ambientes for all using (true) with check (true);
@@ -249,3 +263,17 @@ create policy "alunos: leitura publica" on alunos for select using (true);
 create policy "professores: leitura publica" on professores for select using (true);
 create policy "professores: criar conta" on professores for insert with check (true);
 create policy "professores: atualizar senha" on professores for update using (true) with check (true);
+
+-- coordenacao_auth: só leitura (precisa ser lida pra conferir a senha no
+-- navegador — ver src/lib/auth.js). Sem policy de insert/update/delete:
+-- o app nunca escreve aqui, só quem tem acesso direto ao banco.
+create policy "coordenacao_auth: leitura publica" on coordenacao_auth for select using (true);
+
+-- Senha inicial "Arena@123!" (a mesma que já era usada antes) — já
+-- com salt e hash, nunca em texto puro. Se quiser trocar a senha,
+-- troque esta linha por um novo salt+hash calculado do mesmo jeito.
+insert into coordenacao_auth (chave, salt, senha_hash) values (
+  'coordenacao',
+  '976ebc26b7d2a3f5f65d1e189f5897d7',
+  '382e1fcf3d18b5fbb60e49fe1ccc13c0ee3a25a570b4fa5b193ae02d3e7364de'
+) on conflict (chave) do nothing;

@@ -58,6 +58,21 @@ export async function senhaValida(nome, senha) {
   return (await hashSenha(senha, professor.salt)) === professor.senha_hash;
 }
 
+// Senha da Área Restrita (coordenação) — guardada com salt + hash na
+// tabela "coordenacao_auth", não mais escrita direto no código do app
+// (antes era a constante SENHA_COORDENACAO em App.jsx, visível pra
+// qualquer um que abrisse "Ver código-fonte" da página).
+export async function coordenacaoSenhaValida(senha) {
+  const { data, error } = await supabase
+    .from("coordenacao_auth")
+    .select("salt, senha_hash")
+    .eq("chave", "coordenacao")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return false;
+  return (await hashSenha(senha, data.salt)) === data.senha_hash;
+}
+
 // Usado pela coordenação para redefinir a senha de um professor que
 // esqueceu a própria (ex.: AdminPortal). Exige a policy de update na
 // tabela "professores" — veja supabase/schema.sql.

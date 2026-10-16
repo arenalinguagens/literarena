@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { storage } from "./lib/storage";
-import { buscarProfessor, criarProfessor, senhaValida, redefinirSenhaProfessor } from "./lib/auth";
+import { buscarProfessor, criarProfessor, senhaValida, redefinirSenhaProfessor, coordenacaoSenhaValida } from "./lib/auth";
 import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
@@ -1105,17 +1105,25 @@ function Field({ label, children }) {
 }
 
 /* ---------------- ADMIN ---------------- */
-const SENHA_COORDENACAO = "Arena@123!";
-
 function AdminLogin({ onBack, onUnlock }) {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [verificando, setVerificando] = useState(false);
 
-  function entrar() {
-    if (senha === SENHA_COORDENACAO) {
-      onUnlock();
-    } else {
-      setErro("Senha incorreta.");
+  async function entrar() {
+    setVerificando(true);
+    setErro("");
+    try {
+      const ok = await coordenacaoSenhaValida(senha);
+      if (ok) {
+        onUnlock();
+      } else {
+        setErro("Senha incorreta.");
+      }
+    } catch {
+      setErro("Não foi possível conferir a senha agora. Tente de novo.");
+    } finally {
+      setVerificando(false);
     }
   }
 
@@ -1129,18 +1137,18 @@ function AdminLogin({ onBack, onUnlock }) {
           type="password"
           value={senha}
           onChange={(e) => { setSenha(e.target.value); setErro(""); }}
-          onKeyDown={(e) => e.key === "Enter" && entrar()}
+          onKeyDown={(e) => e.key === "Enter" && senha && !verificando && entrar()}
           placeholder="Senha"
           autoFocus
           className="input mb-3"
         />
         {erro && <p className="text-rose-600 text-sm mb-3">{erro}</p>}
         <button
-          disabled={!senha}
+          disabled={!senha || verificando}
           onClick={entrar}
           className="w-full bg-indigo-950 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-900"
         >
-          Entrar
+          {verificando ? "Conferindo…" : "Entrar"}
         </button>
         <style>{`.input { width:100%; border:1px solid #d6d3d1; border-radius:0.5rem; padding:0.6rem 0.9rem; font-size:0.9rem; } .input:focus { outline:none; box-shadow:0 0 0 2px #fbbf24; }`}</style>
       </div>
