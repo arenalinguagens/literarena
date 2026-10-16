@@ -2187,6 +2187,15 @@ function AmbienteRow({ ambiente, ambientes, saveAmbientes, oficinasDoAmbiente })
 function VerOficinas({ onBack, oficinas, configCards }) {
   const [detalheId, setDetalheId] = useState(null);
 
+  // Algumas oficinas só são oferecidas numa das duas sessões (grupo67/89
+  // independentes) — avisa isso já na tela de consulta, sem precisar que
+  // o aluno informe a série pra descobrir que não pode escolher.
+  const restricaoDeSerie = (o) => {
+    if (o.grupo67 && !o.grupo89) return "Apenas para 6º e 7º ano";
+    if (o.grupo89 && !o.grupo67) return "Apenas para 8º e 9º ano";
+    return null;
+  };
+
   const disponiveis = oficinas
     .filter((o) => o.status === "aprovada")
     .slice()
@@ -2213,6 +2222,9 @@ function VerOficinas({ onBack, oficinas, configCards }) {
               onClick={() => setDetalheId(o.id)}
               className="text-left border border-stone-200 rounded-xl bg-white p-3.5 flex flex-col gap-2 hover:border-indigo-300 min-h-[108px]"
             >
+              {restricaoDeSerie(o) && (
+                <span className="self-start text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{restricaoDeSerie(o)}</span>
+              )}
               <h3 className="font-serif font-bold text-indigo-950 text-sm leading-tight">{o.nome}</h3>
               {configCards.mostrarProfessor && <span className="mt-auto text-xs text-slate-400">{o.creditos || `Prof. ${o.professor}`}</span>}
             </button>
@@ -2231,6 +2243,9 @@ function VerOficinas({ onBack, oficinas, configCards }) {
               </button>
             </div>
             <div className="flex flex-wrap gap-2 items-center mt-1.5">
+              {restricaoDeSerie(detalhe) && (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">{restricaoDeSerie(detalhe)}</span>
+              )}
               {configCards.mostrarProfessor && <span className="text-xs text-slate-400">{detalhe.creditos || `Prof. ${detalhe.professor}`}</span>}
               {configCards.mostrarAmbiente && <span className="text-xs text-slate-400">{detalhe.ambienteTipo === "sala" ? "Sala convencional" : detalhe.ambienteDetalhe || "Outro espaço"}</span>}
             </div>
