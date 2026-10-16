@@ -2537,7 +2537,14 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
                     );
                     if (!ok) await refreshInscricoes();
                     setProcessando(false);
-                    if (ok) flash("Inscrição confirmada!");
+                    if (ok) {
+                      // Fecha o modal da oficina escolhida — sem isso, ele
+                      // reaparecia sozinho (coberto pelo comprovante por
+                      // cima) se o aluno cancelasse a inscrição depois,
+                      // porque detalheId continuava apontando pra ela.
+                      setDetalheId(null);
+                      flash("Inscrição confirmada!");
+                    }
                   }}
                   className="w-full mt-4 text-sm font-semibold bg-amber-400 hover:bg-amber-300 disabled:opacity-30 text-indigo-950 py-2.5 rounded-lg"
                 >
