@@ -2212,7 +2212,7 @@ function VerOficinas({ onBack, oficinas, configCards }) {
       <BackBar onBack={onBack} title="Oficinas do Festival" />
       <div className="max-w-2xl mx-auto px-5 py-6">
         <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-          Dá uma olhada nas oficinas antes de escolher a sua. Pra se inscrever de verdade, entre com sua matrícula em <strong className="text-slate-700">Sou Aluno</strong>.
+          Leia atentamente a descrição de cada oficina antes de escolher a sua. Para se inscrever, é necessário digitar seu número de matrícula (RA) clicando no botão <strong className="text-slate-700">Sou Aluno</strong> na tela inicial.
         </p>
 
         <div className="grid grid-cols-2 gap-3">
