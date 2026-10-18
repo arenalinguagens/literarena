@@ -487,7 +487,9 @@ function Home({ onNav }) {
           </div>
         </TicketStub>
 
-        <button onClick={() => onNav("admin")} className="mt-10 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+        <p className="mt-8 text-xs text-slate-400">Para mais informações, acesse o EduConnect.</p>
+
+        <button onClick={() => onNav("admin")} className="mt-4 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
           <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
         </button>
       </div>
