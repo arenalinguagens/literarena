@@ -125,6 +125,28 @@ function salaDaInscricao(oficina, serie) {
   const sala = grupo === "67" ? oficina.salaNumero67 : grupo === "89" ? oficina.salaNumero89 : "";
   return sala || oficina.ambienteAlocado;
 }
+// Mesma resolução de salaDaInscricao, mas direto pelo grupo da sessão
+// (67/89) — usado no Relatório de Espaços, que lista por sessão, não
+// por aluno/série.
+function salaPorGrupo(oficina, grupo) {
+  if (!oficina?.ambienteAlocado) return "";
+  if (oficina.ambienteAlocado !== AMBIENTE_SALA_PADRAO) return oficina.ambienteAlocado;
+  const sala = grupo === "67" ? oficina.salaNumero67 : oficina.salaNumero89;
+  return sala || oficina.ambienteAlocado;
+}
+// Agrupa os espaços pro Relatório de Espaços: salas de aula comuns
+// primeiro, depois os espaços especiais do prédio 1 (nome terminado em
+// "1", ex. "Maker 1", "Lab 1"), depois os do prédio 2 — o da expansão —
+// (nome terminado em "2"), e por último qualquer espaço que não siga
+// esse padrão, pra nunca sumir um espaço do relatório sem querer.
+function grupoDoEspaco(nome) {
+  if (/^sala\b/i.test(nome.trim())) return { ordem: 0, titulo: "Salas de aula" };
+  const m = nome.trim().match(/(\d+)\s*$/);
+  if (m === null) return { ordem: 9, titulo: "Outros espaços" };
+  if (m[1] === "1") return { ordem: 1, titulo: "Prédio 1" };
+  if (m[1] === "2") return { ordem: 2, titulo: "Prédio 2 — expansão" };
+  return { ordem: 3 + Number(m[1]), titulo: `Prédio ${m[1]}` };
+}
 // Verdadeiro enquanto a coordenação estiver esperando o PROFESSOR
 // confirmar título, descrição e/ou ambiente (quando algum foi
 // preenchido/definido por ela em nome dele).
@@ -1316,6 +1338,17 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               {oficinas.length === 0 && <p className="text-sm text-slate-400">Nenhuma oficina cadastrada ainda.</p>}
             </div>
 
+            <div className="mt-8 mb-2 flex items-center justify-between gap-2">
+              <div>
+                <h3 className="font-serif font-bold text-indigo-950">Relatório de espaços</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Qual oficina acontece em cada sala/espaço, por sessão — pra equipe direcionar os alunos.</p>
+              </div>
+              <button onClick={() => imprimirSecao("relatorio-espacos-imprimivel")} className="shrink-0 text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
+            </div>
+            <div id="relatorio-espacos-imprimivel" data-print-secao>
+              <RelatorioEspacos oficinas={oficinas} />
+            </div>
+
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de materiais necessários</h3>
               <p className="text-xs text-slate-500 mt-0.5">Não fica na tela — clique para gerar e imprimir.</p>
@@ -1756,6 +1789,74 @@ function RelatorioPendencias({ alunos, inscricoes }) {
         );
       })}
       {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
+    </div>
+  );
+}
+
+// Lista, por espaço, quais oficinas acontecem ali em cada sessão —
+// pensado pra equipe usar no dia do evento pra direcionar os alunos
+// pra sala certa. Ordem: salas de aula comuns primeiro, depois os
+// espaços do prédio 1 (Maker 1, Lab 1...), depois os do prédio 2, o da
+// expansão (Maker 2, Lab 2...).
+function RelatorioEspacos({ oficinas }) {
+  const linhas = oficinas
+    .filter((o) => o.status === "aprovada" && o.ambienteAlocado)
+    .flatMap((o) => {
+      const sessoes = [];
+      if (o.grupo67) sessoes.push({ sessao: "6º e 7º ano", local: salaPorGrupo(o, "67") });
+      if (o.grupo89) sessoes.push({ sessao: "8º e 9º ano", local: salaPorGrupo(o, "89") });
+      return sessoes.filter((s) => s.local).map((s) => ({ oficina: o, ...s }));
+    });
+
+  const porLocal = new Map();
+  linhas.forEach((l) => {
+    if (!porLocal.has(l.local)) porLocal.set(l.local, []);
+    porLocal.get(l.local).push(l);
+  });
+
+  const locais = Array.from(porLocal.keys()).sort((a, b) => {
+    const ga = grupoDoEspaco(a);
+    const gb = grupoDoEspaco(b);
+    if (ga.ordem !== gb.ordem) return ga.ordem - gb.ordem;
+    return a.localeCompare(b, "pt-BR");
+  });
+
+  if (locais.length === 0) {
+    return <p className="text-sm text-slate-400">Nenhuma oficina aprovada com espaço definido ainda.</p>;
+  }
+
+  let secaoAnterior = null;
+
+  return (
+    <div className="space-y-4">
+      {locais.map((local) => {
+        const { titulo } = grupoDoEspaco(local);
+        const mostrarTituloSecao = titulo !== secaoAnterior;
+        secaoAnterior = titulo;
+        return (
+          <div key={local}>
+            {mostrarTituloSecao && (
+              <p className="text-[11px] uppercase tracking-wide font-bold text-slate-400 mb-1.5 mt-3 first:mt-0">{titulo}</p>
+            )}
+            <div className="border border-stone-200 rounded-lg bg-white p-3">
+              <div className="flex items-center gap-1.5 font-serif font-bold text-indigo-950 text-sm">
+                <MapPin className="w-4 h-4 text-indigo-700 shrink-0" /> {local}
+              </div>
+              <ul className="mt-2 divide-y divide-stone-100">
+                {porLocal.get(local)
+                  .slice()
+                  .sort((a, b) => a.oficina.nome.localeCompare(b.oficina.nome, "pt-BR"))
+                  .map((l, i) => (
+                    <li key={`${l.oficina.id}-${l.sessao}-${i}`} className="py-1.5 text-sm flex items-center justify-between gap-2">
+                      <span>{l.oficina.nome} <span className="text-slate-400">· {l.oficina.professor}</span></span>
+                      <span className="text-xs text-slate-400 shrink-0">{l.sessao}</span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
