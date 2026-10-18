@@ -511,9 +511,14 @@ function Home({ onNav }) {
 
         <p className="mt-8 text-xs text-slate-400">Para mais informações, acesse o EduConnect.</p>
 
-        <button onClick={() => onNav("admin")} className="mt-4 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
-          <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
-        </button>
+        <div className="mt-4 flex items-center justify-center gap-4">
+          <button onClick={() => onNav("professor")} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+            <GraduationCap className="w-3.5 h-3.5" /> Sou Professor
+          </button>
+          <button onClick={() => onNav("admin")} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
+            <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
+          </button>
+        </div>
       </div>
     </div>
   );
