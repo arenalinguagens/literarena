@@ -1323,11 +1323,17 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             </div>
             <RelatorioFilaEspera oficinas={oficinas} filaEspera={filaEspera} saveFilaEspera={saveFilaEspera} flash={flash} />
 
-            <div className="mt-8 mb-2">
-              <h3 className="font-serif font-bold text-indigo-950">Alunos sem inscrição</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Cruza a matrícula oficial dos alunos com as inscrições feitas — mostra quem na lista da secretaria ainda não escolheu oficina.</p>
+            <div className="mt-8 mb-2 flex items-center justify-between gap-2">
+              <div>
+                <h3 className="font-serif font-bold text-indigo-950">Alunos sem inscrição</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Cruza a matrícula oficial dos alunos com as inscrições feitas — mostra quem na lista da secretaria ainda não escolheu oficina.</p>
+              </div>
+              <button onClick={() => imprimirSecao("relatorio-pendencias-imprimivel")} className="shrink-0 text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir</button>
             </div>
             <RelatorioPendencias alunos={alunos} inscricoes={inscricoes} />
+            <div id="relatorio-pendencias-imprimivel" data-print-secao className="print-secao-fora-da-tela">
+              <RelatorioPendenciasImprimir alunos={alunos} inscricoes={inscricoes} />
+            </div>
 
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Relatório de oficinas</h3>
@@ -1794,6 +1800,39 @@ function RelatorioPendencias({ alunos, inscricoes }) {
           </div>
         );
       })}
+      {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
+    </div>
+  );
+}
+
+// Versão imprimível do RelatorioPendencias: mesma lista (alunos sem
+// inscrição, agrupados por série/turma), mas tudo já expandido — sem
+// isso, só o que estivesse aberto na tela na hora de clicar "Imprimir"
+// sairia no papel.
+function RelatorioPendenciasImprimir({ alunos, inscricoes }) {
+  if (alunos.length === 0) {
+    return <p className="text-sm text-slate-400">Nenhuma lista de alunos importada ainda.</p>;
+  }
+
+  const matriculasInscritas = new Set(inscricoes.map((i) => i.matricula));
+  const pendentes = alunos.filter((a) => !matriculasInscritas.has(a.matricula));
+  const grupos = SERIES.flatMap((serie) => TURMAS.map((turma) => ({ serie, turma })))
+    .map(({ serie, turma }) => ({ serie, turma, alunos: pendentes.filter((a) => a.serie === serie && a.turma === turma) }))
+    .filter((g) => g.alunos.length > 0);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-600">
+        <strong>{pendentes.length}</strong> de {alunos.length} {pendentes.length === 1 ? "aluno ainda sem inscrição" : "alunos ainda sem inscrição"}.
+      </p>
+      {grupos.map((g) => (
+        <div key={`${g.serie}-${g.turma}`} className="border border-stone-200 rounded-lg p-3 bg-white">
+          <p className="text-sm font-semibold text-indigo-950 mb-1.5">{g.serie} · Turma {g.turma} <span className="text-slate-400 font-normal">({g.alunos.length})</span></p>
+          <ul className="text-sm text-slate-600 list-disc list-inside">
+            {g.alunos.map((a) => <li key={a.matricula}>{a.nome} · matrícula {a.matricula}</li>)}
+          </ul>
+        </div>
+      ))}
       {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
     </div>
   );
