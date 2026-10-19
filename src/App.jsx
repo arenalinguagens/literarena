@@ -1254,6 +1254,7 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
               <Stat icon={Ticket} label="Vagas · 8º e 9º ano" value={oficinas.reduce((soma, o) => soma + (o.grupo89 ? (o.vagas89 || 0) : 0), 0)} />
               <Stat icon={School} label="Ambientes" value={ambientes.length} />
             </div>
+            <DashboardPorSerie alunos={alunos} inscricoes={inscricoes} oficinas={oficinas} vagasOcupadasPorSerie={vagasOcupadasPorSerie} />
             <RedefinirSenhaProfessor flash={flash} />
           </div>
         )}
@@ -1794,6 +1795,69 @@ function RelatorioPendencias({ alunos, inscricoes }) {
         );
       })}
       {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
+    </div>
+  );
+}
+
+// Resumo do Dashboard, uma linha por série: quantos já se inscreveram,
+// quantos da lista oficial ainda faltam (quando a lista foi importada —
+// senão mostra "—", pra não parecer que ninguém falta) e quantas vagas
+// ainda sobram somando todas as oficinas aprovadas dessa série.
+function DashboardPorSerie({ alunos, inscricoes, oficinas, vagasOcupadasPorSerie }) {
+  const matriculasInscritas = new Set(inscricoes.map((i) => i.matricula));
+
+  const linhas = SERIES.map((serie) => {
+    const grupo = grupoPorSerie(serie);
+    const inscritos = inscricoes.filter((i) => i.serie === serie).length;
+
+    const totalOficial = alunos.filter((a) => a.serie === serie).length;
+    const faltam = totalOficial > 0
+      ? alunos.filter((a) => a.serie === serie && !matriculasInscritas.has(a.matricula)).length
+      : null;
+
+    const oficinasDaSerie = oficinas.filter((o) => o.status === "aprovada" && (grupo === "67" ? o.grupo67 : o.grupo89));
+    let vagasRestantes = 0;
+    let temOficinaSemLimite = false;
+    oficinasDaSerie.forEach((o) => {
+      const vagasGrupo = grupo === "67" ? o.vagas67 : o.vagas89;
+      const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+      if (vagasSerie == null) { temOficinaSemLimite = true; return; }
+      vagasRestantes += Math.max(0, vagasSerie - vagasOcupadasPorSerie(o.id, serie));
+    });
+
+    return { serie, inscritos, faltam, vagasRestantes, temOficinaSemLimite };
+  });
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-4 mb-6">
+      <h3 className="font-serif font-bold text-indigo-950 mb-3">Inscrições por série</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {linhas.map((l) => (
+          <div key={l.serie} className="border border-stone-200 rounded-lg p-3">
+            <p className="font-serif font-bold text-indigo-950 text-sm mb-2">{l.serie}</p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500">Inscritos</span>
+                <span className="font-semibold text-slate-800">{l.inscritos}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500">Faltam</span>
+                <span className="font-semibold text-slate-800">{l.faltam ?? "—"}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500">Vagas restantes</span>
+                <span className="font-semibold text-slate-800">
+                  {l.vagasRestantes}
+                  {l.temOficinaSemLimite && <span className="text-slate-400"> +</span>}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-slate-400 mt-3">
+        "Faltam" cruza com a matrícula oficial — mostra "—" se a lista ainda não foi importada. O "+" ao lado das vagas restantes indica que pelo menos uma oficina dessa série ainda não tem limite de vagas definido (vagas, então, maiores que o número mostrado).
+      </p>
     </div>
   );
 }
