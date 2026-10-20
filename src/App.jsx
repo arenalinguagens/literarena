@@ -5,7 +5,7 @@ import { PROFESSORES_LISTA } from "./lib/professores";
 import {
   BookOpen, Users, School, ClipboardList, CheckCircle2, Clock,
   AlertTriangle, ArrowLeft, Plus, Trash2, GraduationCap, ShieldCheck,
-  Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown
+  Ticket, MapPin, LogOut, RefreshCw, X, Printer, ChevronDown, Backpack
 } from "lucide-react";
 
 const KEYS = { OFICINAS: "oficinas", AMBIENTES: "ambientes", INSCRICOES: "inscricoes", FILA_ESPERA: "filaEspera", CONFIGURACOES: "configuracoes", ALUNOS: "alunos" };
@@ -222,6 +222,97 @@ function ComprovanteCard({ inscricao, oficina, id }) {
           <p className="mt-1">{formatarMateriais(oficina.materiais)}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function agruparEm(lista, tamanho) {
+  const grupos = [];
+  for (let i = 0; i < lista.length; i += tamanho) grupos.push(lista.slice(i, i + tamanho));
+  return grupos;
+}
+
+// Quantos ingressos cabem numa folha A4 (4 colunas x 5 linhas — ver IngressoCard/FolhaIngressos).
+const INGRESSOS_POR_FOLHA = 20;
+
+// Cada folha impressa só pode ter alunos de UMA turma — nunca mistura, por
+// exemplo, 6ºA com 6ºB na mesma página, mesmo que sobre espaço na folha.
+// Por isso agrupa por turma primeiro, e só DEPOIS divide em folhas de
+// INGRESSOS_POR_FOLHA: uma turma grande vira várias folhas (só dela), uma
+// turma nova sempre começa numa folha nova.
+function paginarIngressosPorTurma(inscritos) {
+  const turmasPresentes = [...new Set(inscritos.map((i) => i.turma))];
+  const ordemTurmas = [...TURMAS.filter((t) => turmasPresentes.includes(t)), ...turmasPresentes.filter((t) => !TURMAS.includes(t))];
+  return ordemTurmas.flatMap((turma) => agruparEm(inscritos.filter((i) => i.turma === turma), INGRESSOS_POR_FOLHA));
+}
+
+// Um ingresso individual, pensado pra ser compacto e repetido várias vezes
+// numa folha (ver FolhaIngressos) — formato de "ticket" pra recortar e
+// entregar ao aluno, com sala e material bem em evidência (o que mais
+// importa saber na hora de ir pra oficina).
+function IngressoCard({ inscricao, oficina }) {
+  const local = oficina?.comprovanteMostrarLocal !== false && oficina?.ambienteAlocado ? salaDaInscricao(oficina, inscricao.serie) : "";
+  const horario = oficina?.comprovanteMostrarHorario !== false ? horarioPorSerie(inscricao.serie) : "";
+  const materiais = oficina?.comprovanteMostrarMateriais !== false ? formatarMateriais(oficina?.materiais) : "";
+  return (
+    <div style={{ boxSizing: "border-box", padding: "4px", display: "flex" }}>
+      <div style={{ width: "100%", height: "100%", border: "1.5px dashed #c7d2fe", borderRadius: "7px", padding: "8px 9px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "5px", background: "#ffffff" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              <Ticket style={{ width: "11px", height: "11px", color: "#d97706" }} />
+              <span style={{ fontSize: "8.5px", fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.04em" }}>LiterArena</span>
+            </span>
+            <span style={{ fontSize: "8.5px", color: "#a8a29e", fontWeight: 600 }}>23/10</span>
+          </div>
+
+          <h3 style={{ margin: 0, fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: "13px", color: "#1e1b4b", lineHeight: 1.22, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{oficina?.nome || "Oficina removida"}</h3>
+
+          <div style={{ borderTop: "1px dashed #d6d3d1", paddingTop: "4px" }}>
+            <p style={{ margin: 0, fontSize: "11px", fontWeight: 600, color: "#292524", lineHeight: 1.3 }}>{inscricao.nomeAluno}</p>
+            <p style={{ margin: "1px 0 0", fontSize: "9px", color: "#a8a29e" }}>Matrícula {inscricao.matricula} · {inscricao.serie} {inscricao.turma}</p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {local && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", background: "#eef2ff", borderRadius: "6px", padding: "5px 7px" }}>
+              <MapPin style={{ width: "12px", height: "12px", color: "#4338ca", marginTop: "1px", flexShrink: 0 }} />
+              <span style={{ fontSize: "10.5px", lineHeight: 1.35 }}>
+                <strong style={{ color: "#312e81", fontWeight: 700 }}>{local}</strong>
+                {horario && <><br /><span style={{ color: "#6366f1", fontSize: "9px", fontWeight: 600 }}>{horario}</span></>}
+              </span>
+            </div>
+          )}
+
+          {materiais && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", background: "#fffbeb", borderRadius: "6px", padding: "5px 7px" }}>
+              <Backpack style={{ width: "12px", height: "12px", color: "#b45309", marginTop: "1px", flexShrink: 0 }} />
+              <span style={{ fontSize: "10px", lineHeight: 1.35, color: "#92400e" }}><strong style={{ fontWeight: 700 }}>Levar:</strong> {materiais}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Uma folha A4 (794x1123px, 96dpi) com até 20 ingressos (4 colunas x 5
+// linhas). Recebe já uma ÚNICA turma (ver paginarIngressosPorTurma) — por
+// isso nunca precisa se preocupar em misturar turmas aqui.
+function FolhaIngressos({ ingressos, oficinas, isLast }) {
+  return (
+    <div
+      className="folha-ingressos"
+      style={{
+        width: "794px", height: "1123px", boxSizing: "border-box", background: "#ffffff",
+        padding: "14px 12px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridTemplateRows: "repeat(5, 1fr)", gap: 0,
+        pageBreakAfter: isLast ? "auto" : "always",
+      }}
+    >
+      {ingressos.map((i) => (
+        <IngressoCard key={i.matricula} inscricao={i} oficina={oficinas.find((o) => o.id === i.oficinaId)} />
+      ))}
     </div>
   );
 }
@@ -1418,8 +1509,8 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             </div>
 
             <div className="mt-8 mb-2">
-              <h3 className="font-serif font-bold text-indigo-950">Comprovantes de inscrição</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Com {inscricoes.length} inscritos, os comprovantes não ficam na tela — escolha uma série para gerar e imprimir só os dela.</p>
+              <h3 className="font-serif font-bold text-indigo-950">Ingressos de oficina</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Com {inscricoes.length} inscritos, os ingressos não ficam na tela — escolha uma série pra gerar e imprimir só os dela, 20 por folha. Cada folha tem só uma turma (nunca mistura 6ºA com 6ºB, por exemplo).</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {SERIES.map((s) => {
@@ -1436,11 +1527,9 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
                 );
               })}
             </div>
-            <div id="comprovantes-imprimivel" data-print-secao className="print-secao-fora-da-tela space-y-4">
-              {serieImprimindo && inscricoes.filter((i) => i.serie === serieImprimindo).map((i) => (
-                <div key={i.matricula} className="comprovante-print-item">
-                  <ComprovanteCard inscricao={i} oficina={oficinas.find((o) => o.id === i.oficinaId)} />
-                </div>
+            <div id="comprovantes-imprimivel" data-print-secao className="print-secao-fora-da-tela">
+              {serieImprimindo && paginarIngressosPorTurma(inscricoes.filter((i) => i.serie === serieImprimindo)).map((pagina, idx, paginas) => (
+                <FolhaIngressos key={idx} ingressos={pagina} oficinas={oficinas} isLast={idx === paginas.length - 1} />
               ))}
             </div>
           </div>
@@ -1458,7 +1547,6 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
           body * { visibility: hidden; }
           [data-print-ativo], [data-print-ativo] * { visibility: visible; }
           [data-print-ativo] { position: absolute !important; left: 0 !important; top: 0 !important; width: 100%; }
-          .comprovante-print-item { page-break-after: always; }
         }
       `}</style>
     </div>
