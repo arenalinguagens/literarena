@@ -102,18 +102,25 @@ function grupoPorSerie(serie) {
   if (serie === "8º ano" || serie === "9º ano") return "89";
   return null;
 }
-// Divide as vagas de uma sessão meio a meio entre as duas séries dela,
-// pra uma série não lotar a oficina sozinha e deixar a outra sem vaga
-// nenhuma. Quando o total é ímpar, a série com mais alunos no colégio
-// fica com a vaga extra (6º tem mais gente que 7º; 9º tem mais gente
-// que 8º) — replica a mesma regra do gatilho checar_vagas_inscricao no
-// banco (supabase/schema.sql), então as duas PRECISAM ficar iguais.
+// Divide as vagas de uma sessão entre as duas séries dela, pra uma série
+// não lotar a oficina sozinha e deixar a outra sem vaga nenhuma. Replica a
+// mesma regra do gatilho checar_vagas_inscricao no banco
+// (supabase/schema.sql), então as duas PRECISAM ficar iguais.
 function vagasPorSerie(vagasGrupo, serie) {
   if (vagasGrupo == null) return null;
+  if (serie === "8º ano" || serie === "9º ano") {
+    // 8º (305 alunos) e 9º (325 alunos) têm populações bem diferentes,
+    // então aqui a divisão é proporcional a isso (não meio a meio).
+    const vagas9 = Math.round((vagasGrupo * 325) / 630);
+    return serie === "9º ano" ? vagas9 : vagasGrupo - vagas9;
+  }
+  // 6º e 7º continuam meio a meio: o total deles ainda não cobre toda a
+  // diferença real de população (6º tem mais gente que 7º), mas mudar essa
+  // conta agora bagunçaria as inscrições já feitas nessas séries.
   const metade = Math.floor(vagasGrupo / 2);
   const resto = vagasGrupo % 2;
-  if (serie === "6º ano" || serie === "9º ano") return metade + resto;
-  if (serie === "7º ano" || serie === "8º ano") return metade;
+  if (serie === "6º ano") return metade + resto;
+  if (serie === "7º ano") return metade;
   return null;
 }
 // Quando o ambiente é "Sala a confirmar", a sala de verdade pro aluno é a
@@ -2213,7 +2220,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
                 </div>
                 {vagas89 != null && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Dividido meio a meio: {ocupadasPorSerie["8º ano"]}/{vagasPorSerie(vagas89, "8º ano")} pro 8º ano · {ocupadasPorSerie["9º ano"]}/{vagasPorSerie(vagas89, "9º ano")} pro 9º ano
+                    Dividido proporcional à turma (305 no 8º · 325 no 9º): {ocupadasPorSerie["8º ano"]}/{vagasPorSerie(vagas89, "8º ano")} pro 8º ano · {ocupadasPorSerie["9º ano"]}/{vagasPorSerie(vagas89, "9º ano")} pro 9º ano
                   </p>
                 )}
               </>

@@ -78,18 +78,20 @@ create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 -- linha da oficina primeiro (for update) pra duas tentativas concorrentes
 -- pela mesma oficina serializarem em vez de passarem juntas.
 --
--- As vagas de cada sessão (vagas_67/89) são divididas meio a meio entre
--- as duas séries dela, pra uma série não lotar a oficina sozinha e
--- deixar a outra sem vaga nenhuma. Quando o total é ímpar, a série com
--- mais alunos no colégio fica com a vaga extra: 6º (283) > 7º (247);
--- 9º (325) > 8º (305). Essa regra PRECISA ficar igual à função
--- vagasPorSerie em src/App.jsx.
+-- As vagas de cada sessão (vagas_67/89) são divididas entre as duas
+-- séries dela, pra uma série não lotar a oficina sozinha e deixar a
+-- outra sem vaga nenhuma. Pro 6º/7º ainda é meio a meio, com a vaga
+-- extra (quando o total é ímpar) pra série com mais alunos no colégio:
+-- 6º (283) > 7º (247). Pro 8º/9º a divisão é proporcional à população
+-- real (9º tem 325 alunos, bem mais que os 305 do 8º), não meio a meio.
+-- Essa regra PRECISA ficar igual à função vagasPorSerie em src/App.jsx.
 create or replace function checar_vagas_inscricao() returns trigger as $$
 declare
   v_vagas_grupo int4;
   v_metade int4;
   v_resto int4;
   v_vagas_serie int4;
+  v_vagas9 int4;
   v_ocupadas int4;
 begin
   if new.oficina_id is null then
@@ -133,13 +135,22 @@ begin
     return new; -- sem limite definido pra essa sessão: não trava
   end if;
 
-  v_metade := v_vagas_grupo / 2; -- divisão inteira
-  v_resto := v_vagas_grupo % 2;
-
-  if new.serie in ('6º ano', '9º ano') then
-    v_vagas_serie := v_metade + v_resto;
+  if new.serie in ('8º ano', '9º ano') then
+    -- Proporcional à população real (8º: 305, 9º: 325, total 630).
+    v_vagas9 := round(v_vagas_grupo * 325.0 / 630);
+    if new.serie = '9º ano' then
+      v_vagas_serie := v_vagas9;
+    else
+      v_vagas_serie := v_vagas_grupo - v_vagas9;
+    end if;
   else
-    v_vagas_serie := v_metade;
+    v_metade := v_vagas_grupo / 2; -- divisão inteira
+    v_resto := v_vagas_grupo % 2;
+    if new.serie = '6º ano' then
+      v_vagas_serie := v_metade + v_resto;
+    else
+      v_vagas_serie := v_metade;
+    end if;
   end if;
 
   select count(*) into v_ocupadas
