@@ -51,6 +51,7 @@ const TABLES = {
       vagas: o.vagas ?? null,
       vagas_67: o.vagas67 ?? null,
       vagas_89: o.vagas89 ?? null,
+      vagas_6_extra: o.vagas6Extra ?? null,
       grupo_67: o.grupo67 ?? true,
       grupo_89: o.grupo89 ?? true,
       ambiente_alocado: o.ambienteAlocado ?? null,
@@ -87,6 +88,7 @@ const TABLES = {
       // valor único antigo — melhor que mostrar 0 vagas por engano.
       vagas67: r.vagas_67 ?? r.vagas ?? null,
       vagas89: r.vagas_89 ?? r.vagas ?? null,
+      vagas6Extra: r.vagas_6_extra ?? null,
       grupo67: r.grupo_67 ?? true,
       grupo89: r.grupo_89 ?? true,
       ambienteAlocado: r.ambiente_alocado ?? "",

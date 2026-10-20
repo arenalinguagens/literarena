@@ -32,6 +32,11 @@ create table if not exists oficinas (
   vagas             int4,   -- legado (antes da divisão por sessão); mantido por compatibilidade
   vagas_67          int4,   -- vagas da sessão do 6º/7º ano (3º horário)
   vagas_89          int4,   -- vagas da sessão do 8º/9º ano (5º horário)
+  -- Vagas extras reservadas só pro 6º ano, somadas por cima da divisão
+  -- normal de vagas_67 (que continua meio a meio) — pra abrir mais vaga
+  -- só pra uma série sem mexer na vaga do 7º. Ver vagasPorSerie em
+  -- src/App.jsx.
+  vagas_6_extra     int4,
   grupo_67          boolean not null default true,  -- oficina oferecida na sessão do 6º/7º ano
   grupo_89          boolean not null default true,  -- oficina oferecida na sessão do 8º/9º ano
   ambiente_alocado  text,   -- guarda o NOME do ambiente escolhido (não o id — ver src/App.jsx)
@@ -84,10 +89,13 @@ create index if not exists inscricoes_oficina_id_idx on inscricoes (oficina_id);
 -- extra (quando o total é ímpar) pra série com mais alunos no colégio:
 -- 6º (283) > 7º (247). Pro 8º/9º a divisão é proporcional à população
 -- real (9º tem 325 alunos, bem mais que os 305 do 8º), não meio a meio.
--- Essa regra PRECISA ficar igual à função vagasPorSerie em src/App.jsx.
+-- vagas_6_extra soma vagas extras reservadas só pro 6º ano, por cima
+-- dessa divisão, sem tirar nada do 7º. Essa regra PRECISA ficar igual
+-- à função vagasPorSerie em src/App.jsx.
 create or replace function checar_vagas_inscricao() returns trigger as $$
 declare
   v_vagas_grupo int4;
+  v_vagas_6_extra int4;
   v_metade int4;
   v_resto int4;
   v_vagas_serie int4;
@@ -126,7 +134,7 @@ begin
   perform 1 from oficinas where id = new.oficina_id for update;
 
   if new.serie in ('6º ano', '7º ano') then
-    select vagas_67 into v_vagas_grupo from oficinas where id = new.oficina_id;
+    select vagas_67, vagas_6_extra into v_vagas_grupo, v_vagas_6_extra from oficinas where id = new.oficina_id;
   else
     select vagas_89 into v_vagas_grupo from oficinas where id = new.oficina_id;
   end if;
@@ -147,7 +155,7 @@ begin
     v_metade := v_vagas_grupo / 2; -- divisão inteira
     v_resto := v_vagas_grupo % 2;
     if new.serie = '6º ano' then
-      v_vagas_serie := v_metade + v_resto;
+      v_vagas_serie := v_metade + v_resto + coalesce(v_vagas_6_extra, 0);
     else
       v_vagas_serie := v_metade;
     end if;

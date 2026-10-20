@@ -106,7 +106,10 @@ function grupoPorSerie(serie) {
 // não lotar a oficina sozinha e deixar a outra sem vaga nenhuma. Replica a
 // mesma regra do gatilho checar_vagas_inscricao no banco
 // (supabase/schema.sql), então as duas PRECISAM ficar iguais.
-function vagasPorSerie(vagasGrupo, serie) {
+// `vagas6Extra` é uma reserva ADICIONAL de vagas só pro 6º ano (ex.: a
+// coordenação abriu mais vagas numa oficina específica só pra essa
+// série) — soma por cima da divisão normal, sem tirar nada do 7º ano.
+function vagasPorSerie(vagasGrupo, serie, vagas6Extra = 0) {
   if (vagasGrupo == null) return null;
   if (serie === "8º ano" || serie === "9º ano") {
     // 8º (305 alunos) e 9º (325 alunos) têm populações bem diferentes,
@@ -119,7 +122,7 @@ function vagasPorSerie(vagasGrupo, serie) {
   // conta agora bagunçaria as inscrições já feitas nessas séries.
   const metade = Math.floor(vagasGrupo / 2);
   const resto = vagasGrupo % 2;
-  if (serie === "6º ano") return metade + resto;
+  if (serie === "6º ano") return metade + resto + (vagas6Extra || 0);
   if (serie === "7º ano") return metade;
   return null;
 }
@@ -1559,7 +1562,7 @@ function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupad
                 <span className="text-sm font-semibold">{o.nome} <span className="text-slate-400 font-normal">· {o.professor}</span></span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${expandida ? "rotate-180" : ""}`} />
               </div>
-              {o.grupo67 && <BarraVagas label="6º ano" ocupadas={vagasOcupadasPorSerie(o.id, "6º ano")} vagas={vagasPorSerie(o.vagas67, "6º ano")} />}
+              {o.grupo67 && <BarraVagas label="6º ano" ocupadas={vagasOcupadasPorSerie(o.id, "6º ano")} vagas={vagasPorSerie(o.vagas67, "6º ano", o.vagas6Extra)} />}
               {o.grupo67 && <BarraVagas label="7º ano" ocupadas={vagasOcupadasPorSerie(o.id, "7º ano")} vagas={vagasPorSerie(o.vagas67, "7º ano")} />}
               {o.grupo89 && <BarraVagas label="8º ano" ocupadas={vagasOcupadasPorSerie(o.id, "8º ano")} vagas={vagasPorSerie(o.vagas89, "8º ano")} />}
               {o.grupo89 && <BarraVagas label="9º ano" ocupadas={vagasOcupadasPorSerie(o.id, "9º ano")} vagas={vagasPorSerie(o.vagas89, "9º ano")} />}
@@ -1866,7 +1869,7 @@ function DashboardPorSerie({ alunos, inscricoes, oficinas, vagasOcupadasPorSerie
     let temOficinaSemLimite = false;
     oficinasDaSerie.forEach((o) => {
       const vagasGrupo = grupo === "67" ? o.vagas67 : o.vagas89;
-      const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+      const vagasSerie = vagasPorSerie(vagasGrupo, serie, o.vagas6Extra);
       if (vagasSerie == null) { temOficinaSemLimite = true; return; }
       vagasRestantes += Math.max(0, vagasSerie - vagasOcupadasPorSerie(o.id, serie));
     });
@@ -2089,6 +2092,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
   const [grupo89, setGrupo89] = useState(oficina.grupo89);
   const [vagas67, setVagas67] = useState(oficina.vagas67);
   const [vagas89, setVagas89] = useState(oficina.vagas89);
+  const [vagas6Extra, setVagas6Extra] = useState(oficina.vagas6Extra);
   const [ambienteAlocado, setAmbienteAlocado] = useState(oficina.ambienteAlocado || "");
   const [serieSala67, setSerieSala67] = useState(() => parseSalaNumero(oficina.salaNumero67).serie);
   const [turmaSala67, setTurmaSala67] = useState(() => parseSalaNumero(oficina.salaNumero67).turma);
@@ -2201,9 +2205,13 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
                 </div>
                 {vagas67 != null && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Dividido meio a meio: {ocupadasPorSerie["6º ano"]}/{vagasPorSerie(vagas67, "6º ano")} pro 6º ano · {ocupadasPorSerie["7º ano"]}/{vagasPorSerie(vagas67, "7º ano")} pro 7º ano
+                    Dividido meio a meio: {ocupadasPorSerie["6º ano"]}/{vagasPorSerie(vagas67, "6º ano", vagas6Extra)} pro 6º ano · {ocupadasPorSerie["7º ano"]}/{vagasPorSerie(vagas67, "7º ano")} pro 7º ano
                   </p>
                 )}
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input type="number" min="0" value={vagas6Extra ?? ""} onChange={(e) => setVagas6Extra(e.target.value === "" ? null : Number(e.target.value))} className="input" style={{ width: "5rem" }} />
+                  <span className="text-xs text-slate-500">vagas extras reservadas só pro 6º ano (somam, não tiram do 7º)</span>
+                </div>
               </>
             )}
           </div>
@@ -2290,7 +2298,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
         <button
           disabled={!editValido || aguardandoConfirmacao || !!salvando}
           title={aguardandoConfirmacao ? "O professor ainda não confirmou título, descrição e/ou ambiente" : ""}
-          onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "" }, "aprovar", "Oficina aprovada!")}
+          onClick={() => salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, vagas6Extra, ambienteAlocado, feedback: "" }, "aprovar", "Oficina aprovada!")}
           className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5"
         >
           {salvando === "aprovar" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
@@ -2302,7 +2310,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
             title="Aprova mesmo sem o professor ter confirmado título, descrição e/ou ambiente"
             onClick={() => {
               if (confirm("Aprovar esta oficina sem esperar a confirmação do professor?")) {
-                salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, ambienteAlocado, feedback: "", tituloAprovado: true, descricaoAprovado: true }, "aprovar-mesmo-assim", "Oficina aprovada!");
+                salvarTexto({ status: "aprovada", grupo67, grupo89, vagas67, vagas89, vagas6Extra, ambienteAlocado, feedback: "", tituloAprovado: true, descricaoAprovado: true }, "aprovar-mesmo-assim", "Oficina aprovada!");
               }
             }}
             className="text-xs font-semibold border border-amber-400 text-amber-700 hover:bg-amber-50 disabled:opacity-40 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
@@ -2313,7 +2321,7 @@ function AdminOficinaRow({ oficina, ambientes, ocupadas67, ocupadas89, ocupadasP
         )}
         <button
           disabled={!editValido || !!salvando}
-          onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, ambienteAlocado }, "salvar", "Alterações salvas.")}
+          onClick={() => salvarTexto({ grupo67, grupo89, vagas67, vagas89, vagas6Extra, ambienteAlocado }, "salvar", "Alterações salvas.")}
           className="text-xs font-semibold border border-stone-300 disabled:opacity-40 text-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
         >
           {salvando === "salvar" && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
@@ -2673,7 +2681,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
             // Vagas divididas meio a meio entre as duas séries da sessão
             // (ver vagasPorSerie) — cada aluno só concorre com a própria
             // série, pra uma delas não lotar a oficina sozinha.
-            const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+            const vagasSerie = vagasPorSerie(vagasGrupo, serie, o.vagas6Extra);
             const ocupadas = vagasOcupadasPorSerie(o.id, serie);
             // vagasSerie null/indefinido = a coordenação ainda não definiu um
             // limite pra essa sessão — trata como sem limite (nunca cheia),
@@ -2702,7 +2710,7 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
 
       {detalhe && (() => {
         const vagasGrupo = meuGrupo === "67" ? detalhe.vagas67 : detalhe.vagas89;
-        const vagasSerie = vagasPorSerie(vagasGrupo, serie);
+        const vagasSerie = vagasPorSerie(vagasGrupo, serie, detalhe.vagas6Extra);
         const ocupadas = vagasOcupadasPorSerie(detalhe.id, serie);
         const cheia = vagasSerie != null && ocupadas >= vagasSerie;
         const naFila = minhasFilas.some((f) => f.oficinaId === detalhe.id);
