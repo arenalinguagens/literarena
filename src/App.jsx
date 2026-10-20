@@ -1572,21 +1572,29 @@ function RelatorioInscricoes({ oficinas, inscricoes, saveInscricoes, vagasOcupad
                 {inscritos.length === 0 ? (
                   <p className="text-xs text-slate-400 py-1.5">Nenhum aluno inscrito ainda.</p>
                 ) : (
-                  <ul className="divide-y divide-stone-100">
-                    {inscritos.map((i) => (
-                      <li key={i.matricula} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                        <span>{i.nomeAluno} <span className="text-slate-400">· {i.serie} {i.turma}</span></span>
-                        <button
-                          type="button"
-                          onClick={() => excluirInscricao(i)}
-                          className="text-rose-500 hover:text-rose-700 shrink-0"
-                          title="Excluir inscrição"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  SERIES.filter((serie) => inscritos.some((i) => i.serie === serie)).map((serie) => {
+                    const doSerie = inscritos.filter((i) => i.serie === serie);
+                    return (
+                      <div key={serie} className="mb-2 last:mb-0">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide pt-1.5">{serie} ({doSerie.length})</p>
+                        <ul className="divide-y divide-stone-100">
+                          {doSerie.map((i) => (
+                            <li key={i.matricula} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                              <span>{i.nomeAluno} <span className="text-slate-400">· Turma {i.turma}</span></span>
+                              <button
+                                type="button"
+                                onClick={() => excluirInscricao(i)}
+                                className="text-rose-500 hover:text-rose-700 shrink-0"
+                                title="Excluir inscrição"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             )}
