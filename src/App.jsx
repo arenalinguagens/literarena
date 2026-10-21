@@ -256,7 +256,7 @@ function IngressoCard({ inscricao, oficina }) {
   const materiais = oficina?.comprovanteMostrarMateriais !== false ? formatarMateriais(oficina?.materiais) : "";
   return (
     <div style={{ boxSizing: "border-box", padding: "4px", display: "flex" }}>
-      <div style={{ width: "100%", height: "100%", border: "1.5px dashed #c7d2fe", borderRadius: "7px", padding: "8px 9px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "5px", background: "#ffffff" }}>
+      <div style={{ width: "100%", height: "100%", border: "2.5px dashed #a5b4fc", borderRadius: "7px", padding: "8px 9px", boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "5px", background: "#ffffff" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px" }}>
             <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
