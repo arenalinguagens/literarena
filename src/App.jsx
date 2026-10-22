@@ -1376,6 +1376,17 @@ function AdminPortal({ onBack, oficinas, saveOficinas, ambientes, saveAmbientes,
             </div>
             <RelatorioInscricoes oficinas={oficinas} inscricoes={inscricoes} saveInscricoes={saveInscricoes} vagasOcupadasPorSerie={vagasOcupadasPorSerie} flash={flash} />
 
+            <div className="mt-8 mb-2 flex items-center justify-between gap-2">
+              <div>
+                <h3 className="font-serif font-bold text-indigo-950">Lista de assinaturas</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Não fica na tela — uma oficina por folha, separado por série, com espaço pro aluno assinar.</p>
+              </div>
+              <button onClick={() => imprimirSecao("relatorio-assinaturas-imprimivel")} className="shrink-0 text-xs font-semibold bg-indigo-950 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Printer className="w-3.5 h-3.5" /> Imprimir lista de assinaturas</button>
+            </div>
+            <div id="relatorio-assinaturas-imprimivel" data-print-secao className="print-secao-fora-da-tela">
+              <RelatorioAssinaturasImprimir oficinas={oficinas} inscricoes={inscricoes} />
+            </div>
+
             <div className="mt-8 mb-2">
               <h3 className="font-serif font-bold text-indigo-950">Lista de espera</h3>
               <p className="text-xs text-slate-500 mt-0.5">Alunos que pediram pra entrar na fila de uma oficina lotada. Visível só aqui, pra coordenação.</p>
@@ -1898,6 +1909,75 @@ function RelatorioPendenciasImprimir({ alunos, inscricoes }) {
         </div>
       ))}
       {pendentes.length === 0 && <p className="text-sm text-slate-400">Todos os alunos da lista já se inscreveram.</p>}
+    </div>
+  );
+}
+
+// Uma folha por oficina (cheia de alunos aprovados que se inscreveram,
+// separados por série), com espaço pro aluno assinar — pra conferência
+// presencial no dia do festival. Logo e nome da oficina em destaque no
+// topo de cada folha.
+function RelatorioAssinaturasImprimir({ oficinas, inscricoes }) {
+  const comInscritos = oficinas
+    .filter((o) => o.status === "aprovada")
+    .map((o) => ({ oficina: o, inscritos: inscricoes.filter((i) => i.oficinaId === o.id) }))
+    .filter((g) => g.inscritos.length > 0);
+
+  if (comInscritos.length === 0) {
+    return <p className="text-sm text-slate-400">Nenhuma oficina aprovada com aluno inscrito ainda.</p>;
+  }
+
+  return (
+    <div>
+      {comInscritos.map(({ oficina, inscritos }, idx) => {
+        const porSerie = SERIES.filter((s) => inscritos.some((i) => i.serie === s)).map((s) => ({ serie: s, alunos: inscritos.filter((i) => i.serie === s) }));
+        return (
+          <div
+            key={oficina.id}
+            className="assinaturas-pagina"
+            style={{ padding: "28px 24px", boxSizing: "border-box", pageBreakAfter: idx === comInscritos.length - 1 ? "auto" : "always" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
+              <img src={LOGO_SRC} alt="LiterArena" style={{ height: "56px", width: "auto" }} />
+              <div>
+                <p style={{ margin: 0, fontSize: "11px", fontWeight: 700, color: "#a8a29e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lista de assinaturas</p>
+                <p style={{ margin: 0, fontSize: "11px", color: "#a8a29e" }}>23 de outubro</p>
+              </div>
+            </div>
+
+            <h2 style={{ margin: "0 0 2px", fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: "26px", color: "#1e1b4b" }}>{oficina.nome}</h2>
+            <p style={{ margin: "0 0 22px", fontSize: "14px", color: "#78716c" }}><ProfessoresLine oficina={oficina} /></p>
+
+            {porSerie.map(({ serie, alunos }) => (
+              <div key={serie} style={{ marginBottom: "22px" }}>
+                <p style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "#1e1b4b", textTransform: "uppercase", letterSpacing: "0.04em", background: "#eef2ff", display: "inline-block", padding: "3px 10px", borderRadius: "999px" }}>
+                  {serie} ({alunos.length})
+                </p>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b", width: "30px" }}>#</th>
+                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b" }}>Aluno</th>
+                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b", width: "38%" }}>Assinatura</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alunos.map((a, i) => (
+                      <tr key={a.matricula}>
+                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}>{i + 1}</td>
+                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}>
+                          {a.nomeAluno} <span style={{ color: "#a8a29e", fontSize: "11px" }}>· Turma {a.turma} · matrícula {a.matricula}</span>
+                        </td>
+                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
