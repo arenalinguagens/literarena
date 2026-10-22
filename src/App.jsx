@@ -1918,66 +1918,67 @@ function RelatorioPendenciasImprimir({ alunos, inscricoes }) {
 // presencial no dia do festival. Logo e nome da oficina em destaque no
 // topo de cada folha.
 function RelatorioAssinaturasImprimir({ oficinas, inscricoes }) {
-  const comInscritos = oficinas
+  // Uma página por combinação oficina+série — nunca duas séries (ex.: 6º
+  // e 7º da mesma oficina) dividindo a mesma folha.
+  const paginas = oficinas
     .filter((o) => o.status === "aprovada")
-    .map((o) => ({ oficina: o, inscritos: inscricoes.filter((i) => i.oficinaId === o.id) }))
-    .filter((g) => g.inscritos.length > 0);
+    .flatMap((o) => {
+      const inscritos = inscricoes.filter((i) => i.oficinaId === o.id);
+      return SERIES.filter((s) => inscritos.some((i) => i.serie === s)).map((serie) => ({
+        oficina: o,
+        serie,
+        alunos: inscritos.filter((i) => i.serie === serie),
+      }));
+    });
 
-  if (comInscritos.length === 0) {
+  if (paginas.length === 0) {
     return <p className="text-sm text-slate-400">Nenhuma oficina aprovada com aluno inscrito ainda.</p>;
   }
 
   return (
     <div>
-      {comInscritos.map(({ oficina, inscritos }, idx) => {
-        const porSerie = SERIES.filter((s) => inscritos.some((i) => i.serie === s)).map((s) => ({ serie: s, alunos: inscritos.filter((i) => i.serie === s) }));
-        return (
-          <div
-            key={oficina.id}
-            className="assinaturas-pagina"
-            style={{ padding: "28px 24px", boxSizing: "border-box", pageBreakAfter: idx === comInscritos.length - 1 ? "auto" : "always" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
-              <img src={LOGO_SRC} alt="LiterArena" style={{ height: "56px", width: "auto" }} />
-              <div>
-                <p style={{ margin: 0, fontSize: "11px", fontWeight: 700, color: "#a8a29e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lista de assinaturas</p>
-                <p style={{ margin: 0, fontSize: "11px", color: "#a8a29e" }}>23 de outubro</p>
-              </div>
+      {paginas.map(({ oficina, serie, alunos }, idx) => (
+        <div
+          key={`${oficina.id}-${serie}`}
+          className="assinaturas-pagina"
+          style={{ padding: "28px 24px", boxSizing: "border-box", pageBreakAfter: idx === paginas.length - 1 ? "auto" : "always" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
+            <img src={LOGO_SRC} alt="LiterArena" style={{ height: "56px", width: "auto" }} />
+            <div>
+              <p style={{ margin: 0, fontSize: "11px", fontWeight: 700, color: "#a8a29e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lista de assinaturas</p>
+              <p style={{ margin: 0, fontSize: "11px", color: "#a8a29e" }}>23 de outubro</p>
             </div>
-
-            <h2 style={{ margin: "0 0 2px", fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: "26px", color: "#1e1b4b" }}>{oficina.nome}</h2>
-            <p style={{ margin: "0 0 22px", fontSize: "14px", color: "#78716c" }}><ProfessoresLine oficina={oficina} /></p>
-
-            {porSerie.map(({ serie, alunos }) => (
-              <div key={serie} style={{ marginBottom: "22px" }}>
-                <p style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "#1e1b4b", textTransform: "uppercase", letterSpacing: "0.04em", background: "#eef2ff", display: "inline-block", padding: "3px 10px", borderRadius: "999px" }}>
-                  {serie} ({alunos.length})
-                </p>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b", width: "30px" }}>#</th>
-                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b" }}>Aluno</th>
-                      <th style={{ textAlign: "left", padding: "4px 6px", borderBottom: "2px solid #1e1b4b", width: "38%" }}>Assinatura</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alunos.map((a, i) => (
-                      <tr key={a.matricula}>
-                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}>{i + 1}</td>
-                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}>
-                          {a.nomeAluno} <span style={{ color: "#a8a29e", fontSize: "11px" }}>· Turma {a.turma} · matrícula {a.matricula}</span>
-                        </td>
-                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #d6d3d1" }}></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
           </div>
-        );
-      })}
+
+          <h2 style={{ margin: "0 0 2px", fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontSize: "26px", color: "#1e1b4b" }}>{oficina.nome}</h2>
+          <p style={{ margin: "0 0 10px", fontSize: "14px", color: "#78716c" }}><ProfessoresLine oficina={oficina} /></p>
+
+          <p style={{ margin: "0 0 10px", fontSize: "13px", fontWeight: 700, color: "#1e1b4b", textTransform: "uppercase", letterSpacing: "0.04em", background: "#eef2ff", display: "inline-block", padding: "3px 10px", borderRadius: "999px" }}>
+            {serie} ({alunos.length})
+          </p>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "2px solid #1e1b4b", width: "30px" }}>#</th>
+                <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "2px solid #1e1b4b" }}>Aluno</th>
+                <th style={{ textAlign: "left", padding: "3px 6px", borderBottom: "2px solid #1e1b4b", width: "38%" }}>Assinatura</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alunos.map((a, i) => (
+                <tr key={a.matricula}>
+                  <td style={{ padding: "4px 6px", borderBottom: "1px solid #d6d3d1" }}>{i + 1}</td>
+                  <td style={{ padding: "4px 6px", borderBottom: "1px solid #d6d3d1" }}>
+                    {a.nomeAluno} <span style={{ color: "#a8a29e", fontSize: "11px" }}>· Turma {a.turma} · matrícula {a.matricula}</span>
+                  </td>
+                  <td style={{ padding: "4px 6px", borderBottom: "1px solid #d6d3d1" }}></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }
