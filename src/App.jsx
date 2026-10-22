@@ -58,6 +58,12 @@ const ABERTURA_INSCRICOES = {
 // janela abrir pra valer. PRECISA ficar igual ao gatilho
 // checar_vagas_inscricao no banco (supabase/schema.sql).
 const MATRICULA_AMOSTRA = "0000";
+// Fecha as inscrições pra todas as séries, de uma vez (a coordenação vai
+// direcionar cada aluno manualmente a partir de agora). A matrícula de
+// amostra continua passando, pro professor seguir demonstrando o
+// processo em sala. PRECISA ficar igual ao gatilho checar_vagas_inscricao
+// no banco (supabase/schema.sql).
+const INSCRICOES_ENCERRADAS = true;
 // Formata dia/hora sempre no horário de Brasília, não no fuso do
 // dispositivo de quem está vendo — um aluno com o fuso do celular errado
 // não pode ver um horário de abertura diferente do real.
@@ -2639,6 +2645,22 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
 
   const meuGrupo = grupoPorSerie(serie);
 
+  // Inscrições encerradas pra todo mundo — quem já tinha inscrição
+  // continua vendo o comprovante normalmente, só bloqueia quem ainda vai
+  // escolher (ou cancelar pra escolher de novo).
+  if (!minhaInscricao && INSCRICOES_ENCERRADAS && matricula !== MATRICULA_AMOSTRA) {
+    return (
+      <div>
+        <BackBar onBack={onBack} title="Escolher Oficina" />
+        <div className="max-w-sm mx-auto px-6 py-16 text-center">
+          <Ticket className="w-10 h-10 mx-auto text-indigo-700 mb-3" />
+          <p className="text-slate-700 font-semibold mb-1">Não é possível mais se inscrever.</p>
+          <p className="text-slate-500 text-sm">A partir de agora, a coordenação de língua portuguesa entrará em contato com você e te direcionará para a melhor oficina.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Cada série só libera a partir da própria data/horário — se o aluno já
   // tem inscrição (caso raro, feita antes de mudar a regra), deixa ver o
   // comprovante normalmente; só bloqueia quem ainda vai escolher.
@@ -2685,18 +2707,22 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
           >
             <Printer className="w-4 h-4" /> Imprimir ou salvar em PDF
           </button>
-          <button
-            disabled={processando}
-            onClick={async () => {
-              setProcessando(true);
-              const ok = await saveInscricoes(inscricoes.filter((i) => i.matricula !== matricula));
-              setProcessando(false);
-              if (ok) flash("Inscrição cancelada. Você pode escolher outra oficina.");
-            }}
-            className="w-full mt-4 flex items-center justify-center gap-2 bg-rose-600 text-white font-semibold py-2.5 rounded-lg hover:bg-rose-700 disabled:opacity-40"
-          >
-            <X className="w-4 h-4" /> {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
-          </button>
+          {INSCRICOES_ENCERRADAS && matricula !== MATRICULA_AMOSTRA ? (
+            <p className="text-xs text-slate-400 text-center mt-4">Pra trocar de oficina agora, fale com a coordenação de língua portuguesa.</p>
+          ) : (
+            <button
+              disabled={processando}
+              onClick={async () => {
+                setProcessando(true);
+                const ok = await saveInscricoes(inscricoes.filter((i) => i.matricula !== matricula));
+                setProcessando(false);
+                if (ok) flash("Inscrição cancelada. Você pode escolher outra oficina.");
+              }}
+              className="w-full mt-4 flex items-center justify-center gap-2 bg-rose-600 text-white font-semibold py-2.5 rounded-lg hover:bg-rose-700 disabled:opacity-40"
+            >
+              <X className="w-4 h-4" /> {processando ? "Cancelando…" : "Cancelar e escolher outra oficina"}
+            </button>
+          )}
           <style>{`
             @media print {
               body * { visibility: hidden; }
@@ -2807,7 +2833,9 @@ function AlunoPortal({ onBack, oficinas, inscricoes, saveInscricoes, refreshInsc
                     setProcessando(true);
                     const ok = await saveInscricoes(
                       [...inscricoes, { matricula, nomeAluno: nomeAluno.trim(), serie, turma: turma.trim(), oficinaId: detalhe.id, timestamp: Date.now() }],
-                      (e) => /INSCRICOES_AINDA_NAO_ABRIRAM/i.test(e?.message || "")
+                      (e) => /INSCRICOES_ENCERRADAS/i.test(e?.message || "")
+                        ? "As inscrições foram encerradas. A coordenação vai entrar em contato com você."
+                        : /INSCRICOES_AINDA_NAO_ABRIRAM/i.test(e?.message || "")
                         ? "As inscrições da sua série ainda não abriram."
                         : (e?.code === "P0001" || /OFICINA_LOTADA/i.test(e?.message || ""))
                         ? "Essa vaga acabou de ser preenchida por outro aluno. Escolha outra oficina."
