@@ -71,24 +71,6 @@ function formatarAberturaBR(data) {
     hora: minuto === "00" ? `${hora}h` : `${hora}h${minuto}`,
   };
 }
-// Contagem regressiva até a abertura (dias/horas/minutos/segundos — só
-// omite as unidades maiores que já chegaram a zero). "agoraMs" vem de
-// fora pra quem usa poder re-renderizar a cada segundo sem a função
-// precisar saber de temporizador.
-function formatarContagem(alvo, agoraMs) {
-  const diff = alvo.getTime() - agoraMs;
-  if (diff <= 0) return "Já abriu!";
-  const totalSeg = Math.floor(diff / 1000);
-  const dias = Math.floor(totalSeg / 86400);
-  const horas = Math.floor((totalSeg % 86400) / 3600);
-  const minutos = Math.floor((totalSeg % 3600) / 60);
-  const segundos = totalSeg % 60;
-  const pad = (n) => String(n).padStart(2, "0");
-  if (dias > 0) return `${dias}d ${pad(horas)}h ${pad(minutos)}min ${pad(segundos)}s`;
-  if (horas > 0) return `${horas}h ${pad(minutos)}min ${pad(segundos)}s`;
-  if (minutos > 0) return `${minutos}min ${pad(segundos)}s`;
-  return `${segundos}s`;
-}
 function horarioPorSerie(serie) {
   if (serie === "6º ano" || serie === "7º ano") return "3º horário";
   if (serie === "8º ano" || serie === "9º ano") return "5º horário";
@@ -545,39 +527,13 @@ export default function App() {
 
 /* ---------------- HOME ---------------- */
 function Home({ onNav }) {
-  const [agora, setAgora] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setAgora(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <div className="bg-white text-slate-800">
       <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
         <img src={LOGO_SRC} alt="LiterArena — Festival de Literatura do Colégio Arena" className="h-32 sm:h-36 w-auto mx-auto mb-10" />
 
         <div className="max-w-xs mx-auto mb-6 bg-indigo-950 text-white rounded-2xl px-5 py-4">
-          <p className="text-[11px] uppercase tracking-wide text-amber-300 font-bold mb-3 text-center">Inscrições abrem em</p>
-          <div className="space-y-3">
-            {Object.keys(ABERTURA_INSCRICOES).map((serie) => {
-              const alvo = ABERTURA_INSCRICOES[serie];
-              const { dia, hora } = formatarAberturaBR(alvo);
-              return (
-                <div key={serie}>
-                  <div className="flex items-center gap-3">
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-amber-400 text-indigo-950 font-serif font-bold flex items-center justify-center text-sm">{dia}</div>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm leading-tight">{serie}</p>
-                      <p className="text-indigo-300 text-xs">a partir das {hora}</p>
-                    </div>
-                  </div>
-                  <div className="mt-1.5 ml-[52px] inline-block bg-amber-400/10 border border-amber-400/30 rounded-lg px-2.5 py-1">
-                    <p className="text-amber-200 text-xs font-bold tabular-nums">{formatarContagem(alvo, agora)}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <p className="text-sm leading-relaxed">Não é possível mais se inscrever. A partir de agora, a coordenação de língua portuguesa entrará em contato com você e te direcionará para a melhor oficina.</p>
         </div>
 
         <div className="grid gap-3 max-w-xs mx-auto mb-3">
