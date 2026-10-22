@@ -542,15 +542,14 @@ function Home({ onNav }) {
           <p className="text-sm leading-relaxed">Não é possível mais se inscrever. A partir de agora, a coordenação de língua portuguesa entrará em contato com você e te direcionará para a melhor oficina.</p>
         </div>
 
-        <div className="grid gap-3 max-w-xs mx-auto mb-3">
+        <div className="grid gap-3 max-w-xs mx-auto mb-10">
           <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
             <Users className="w-5 h-5" /> Sou Aluno
           </button>
-          <button onClick={() => onNav("oficinas")} className="flex items-center justify-center gap-2 bg-white hover:bg-indigo-50 text-indigo-950 font-bold py-2.5 rounded-lg border-2 border-indigo-950 transition">
-            <BookOpen className="w-5 h-5" /> Ver Oficinas
+          <button onClick={() => onNav("professor")} className="flex items-center justify-center gap-2 bg-white hover:bg-indigo-50 text-indigo-950 font-bold py-2.5 rounded-lg border-2 border-indigo-950 transition">
+            <GraduationCap className="w-5 h-5" /> Sou Professor
           </button>
         </div>
-        <p className="max-w-xs mx-auto text-xs text-slate-400 mb-10">Veja a descrição de todas as oficinas antes de escolher a sua.</p>
 
         <TicketStub>
           <div className="w-full max-w-sm mx-auto bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-6 py-4 rounded-sm text-left">
@@ -575,9 +574,6 @@ function Home({ onNav }) {
         <p className="mt-8 text-xs text-slate-400">Para mais informações, acesse o EduConnect.</p>
 
         <div className="mt-4 flex items-center justify-center gap-4">
-          <button onClick={() => onNav("professor")} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
-            <GraduationCap className="w-3.5 h-3.5" /> Sou Professor
-          </button>
           <button onClick={() => onNav("admin")} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
             <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
           </button>
