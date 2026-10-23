@@ -329,16 +329,6 @@ function StatusBadge({ status }) {
   );
 }
 
-function TicketStub({ children }) {
-  return (
-    <div className="relative">
-      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-indigo-950 rounded-full" />
-      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-indigo-950 rounded-full" />
-      {children}
-    </div>
-  );
-}
-
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
@@ -538,42 +528,9 @@ function Home({ onNav }) {
       <div className="max-w-3xl mx-auto px-6 pt-14 pb-16 text-center">
         <img src={LOGO_SRC} alt="LiterArena — Festival de Literatura do Colégio Arena" className="h-32 sm:h-36 w-auto mx-auto mb-10" />
 
-        <div className="max-w-xs mx-auto mb-6 bg-indigo-950 text-white rounded-2xl px-5 py-4">
-          <p className="text-sm leading-relaxed">Não é possível mais se inscrever. A partir de agora, a coordenação de língua portuguesa entrará em contato com você e te direcionará para a melhor oficina.</p>
-        </div>
+        <p className="font-serif text-3xl font-bold text-indigo-950 mb-16">Nos vemos em 2027!</p>
 
-        <div className="grid gap-3 max-w-xs mx-auto mb-10">
-          <button onClick={() => onNav("aluno")} className="flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-indigo-950 font-bold py-3 rounded-lg transition">
-            <Users className="w-5 h-5" /> Sou Aluno
-          </button>
-          <button onClick={() => onNav("professor")} className="flex items-center justify-center gap-2 bg-white hover:bg-indigo-50 text-indigo-950 font-bold py-2.5 rounded-lg border-2 border-indigo-950 transition">
-            <GraduationCap className="w-5 h-5" /> Sou Professor
-          </button>
-        </div>
-
-        <TicketStub>
-          <div className="w-full max-w-sm mx-auto bg-indigo-950 text-white border-y-2 border-dashed border-indigo-700 px-6 py-4 rounded-sm text-left">
-            <div className="flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-xs text-indigo-300 uppercase tracking-wide">23 de outubro · manhã</span>
-            </div>
-            <div className="font-serif font-semibold text-lg mt-1 mb-3">Sessão única do festival</div>
-            <div className="border-t border-dashed border-indigo-700 pt-3 space-y-1.5">
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-indigo-300">3º e 4º horários</span>
-                <span className="font-semibold">6º e 7º ano</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-indigo-300">5º e 6º horários</span>
-                <span className="font-semibold">8º e 9º ano</span>
-              </div>
-            </div>
-          </div>
-        </TicketStub>
-
-        <p className="mt-8 text-xs text-slate-400">Para mais informações, acesse o EduConnect.</p>
-
-        <div className="mt-4 flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-4">
           <button onClick={() => onNav("admin")} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition">
             <ShieldCheck className="w-3.5 h-3.5" /> Área restrita
           </button>
